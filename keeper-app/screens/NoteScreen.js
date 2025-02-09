@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, TextInput, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
+import axios from 'axios'; 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const NoteScreen = ({ route, navigation }) => {
   // Retrieve the note passed from the Home screen (either for viewing/editing or adding a new note)
@@ -8,6 +10,9 @@ const NoteScreen = ({ route, navigation }) => {
   // State for holding the note's title and content (if editing an existing note)
   const [newNote, setNewNote] = useState({
     title: note ? note.title : '',
+
+    //TODO : category: note ? (note.category ? note.category : '' ): '',
+    
     content: note ? note.content : '',
   });
 
@@ -19,22 +24,54 @@ const NoteScreen = ({ route, navigation }) => {
   }, [note]);
 
   // Function to add a new or update an existing note
-  const saveNote = () => {
-    if (newNote.title && newNote.content) {
-      // Add your logic here to save the note (either to a list or database)
+  const saveNote = async () => {
+    if (!newNote.title || !newNote.content) {
+      Alert.alert('Error', 'Please fill in both title and content');
+      return;
+    }
+    const token = await AsyncStorage.getItem("token");
+    
+    if (!token) {
+      console.error("No token found");
+      return;
+    }
+
+    try {
       if (note) {
-        // If note exists (editing), update the note
+        await axios.put(
+          `http://192.168.29.79:4000/api/notes/${note._id}`, // Corrected URL with slash
+          newNote, 
+          {
+            headers: {
+              Authorization: `Bearer ${token}`, 
+              "Content-Type": "application/json", 
+            },
+          }
+        );
         Alert.alert('Success', 'Note updated successfully');
       } else {
-        // If no note (adding new), create a new note
+        await axios.post(
+          "http://192.168.29.79:4000/api/notes",
+          newNote, 
+          {
+            headers: {
+              Authorization: `Bearer ${token}`, 
+              "Content-Type": "application/json", 
+            },
+          }
+        );
         Alert.alert('Success', 'New note added successfully');
       }
-      setNewNote({ title: '', content: '' }); // Clear the input fields after saving the note
-      navigation.navigate('Home'); // Go back to Home screen
-    } else {
-      Alert.alert('Error', 'Please fill in both title and content');
+  
+      setNewNote({ title: '', content: '' });
+      navigation.navigate('Home', { refresh: true });
+  
+    } catch (error) {
+      console.error('Error saving note:', error);
+      Alert.alert('Network Error', error.message);
     }
   };
+  
 
   return (
     <View style={styles.container}>
