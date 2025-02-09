@@ -44,7 +44,7 @@ const RegisterScreen = ({ navigation }) => {
 
     try {
       setLoading(true);
-      const response = await axios.post('http://192.168.29.79:4000/api/auth/register', {
+      const response = await axios.post('http://192.168.1.5:4000/api/auth/register', {
         fullname,
         email,
         password,
