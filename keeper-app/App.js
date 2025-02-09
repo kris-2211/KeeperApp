@@ -1,33 +1,162 @@
 import React, { useEffect, useState } from "react";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { View, ActivityIndicator, StyleSheet, Text, Image, TouchableOpacity, TextInput } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import * as SplashScreen from "expo-splash-screen";
 import { NavigationContainer } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
-import LoginScreen from "./screens/LoginScreen.js";
-import RegisterScreen from "./screens/RegisterScreen.js";
-import HomeScreen from "./screens/HomeScreen.js";
+import { createDrawerNavigator } from "@react-navigation/drawer";
+import { Ionicons } from "@expo/vector-icons";
+import LoginScreen from "./screens/LoginScreen";
+import RegisterScreen from "./screens/RegisterScreen";
+import HomeScreen from "./screens/HomeScreen";
+import NoteScreen from "./screens/NoteScreen";
+import { DrawerActions } from "@react-navigation/native";  // Import DrawerActions
 
 const Stack = createStackNavigator();
-// Keep splash screen visible while checking auth status
+const Drawer = createDrawerNavigator();
 SplashScreen.preventAutoHideAsync();
+
+const Sidebar = ({ navigation }) => {
+  const [notes, setNotes] = useState([]); // Assuming you have a list of notes
+
+  // Function to fetch notes (or use any other way to store/fetch them)
+  useEffect(() => {
+    const fetchNotes = async () => {
+      try {
+        // Fetch your notes from AsyncStorage or API
+        const storedNotes = await AsyncStorage.getItem("notes");
+        if (storedNotes) {
+          setNotes(JSON.parse(storedNotes));
+        }
+      } catch (error) {
+        console.error("Error fetching notes:", error);
+      }
+    };
+    fetchNotes();
+  }, []);
+
+  // Function to delete a specific note
+  const handleDeleteNote = async (noteId) => {
+    try {
+      // Filter out the note you want to delete
+      const updatedNotes = notes.filter(note => note.id !== noteId);
+      
+      // Save updated notes to AsyncStorage or your API
+      await AsyncStorage.setItem("notes", JSON.stringify(updatedNotes));
+      
+      // Update the state
+      setNotes(updatedNotes);
+      alert("Note deleted successfully!");
+    } catch (error) {
+      console.error("Error deleting note:", error);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Remove token from AsyncStorage to log the user out
+      await AsyncStorage.removeItem("token");
+      navigation.navigate("Login");
+    } catch (error) {
+      console.error("Error logging out:", error);
+    }
+  };
+
+  return (
+    <View style={styles.drawerContainer}>
+      <TouchableOpacity style={styles.drawerItem} onPress={() => handleLogout()}>
+        <Text>Logout</Text>
+      </TouchableOpacity>
+      
+      {/* Iterate through notes and display delete button for each */}
+      {notes.map(note => (
+        <View key={note.id} style={styles.noteContainer}>
+          <Text>{note.title}</Text>
+          <TouchableOpacity 
+            style={styles.deleteButton}
+            onPress={() => handleDeleteNote(note.id)}  // Pass note id to delete specific note
+          >
+            <Image source={require("./assets/trash-icon.png")} style={styles.trashIcon} />
+          </TouchableOpacity>
+        </View>
+      ))}
+      
+    </View>
+  );
+};
+
+const StackNavigator = ({ navigation }) => {
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const toggleSearch = () => {
+    setSearchVisible(!searchVisible);
+    setSearchQuery('');
+  };
+
+  return (
+    <Stack.Navigator
+      screenOptions={{
+        headerTitle: () => (
+          searchVisible ? (
+            <View style={styles.searchContainer}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search notes..."
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+              />
+              <TouchableOpacity onPress={toggleSearch}>
+                <Ionicons name="close" size={24} color="black" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.headerContainer}>
+              <Image source={require("./assets/note.png")} style={styles.headerImage} />
+              <Text style={styles.header}>Mind Scribe</Text>
+            </View>
+          )
+        ),
+        headerStyle: { backgroundColor: "#FFEB3B", height: 100 },
+        headerTitleAlign: "center",
+        headerLeft: () => (
+          !searchVisible && (
+            <TouchableOpacity
+              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}  // Use DrawerActions here
+              style={styles.headerIcon}
+            >
+              <Ionicons name="menu" size={30} color="black" />
+            </TouchableOpacity>
+          )
+        ),
+        headerRight: () => (
+          !searchVisible && (
+            <TouchableOpacity onPress={toggleSearch} style={styles.headerIcon}>
+              <Ionicons name="search" size={30} color="black" />
+            </TouchableOpacity>
+          )
+        ),
+      }}>
+      <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Screen name="Note" component={NoteScreen} />
+    </Stack.Navigator>
+  );
+};
 
 const AppNavigator = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   useEffect(() => {
-    getData()
     const checkLoginStatus = async () => {
       try {
-        AsyncStorage.removeItem("token");
         const token = await AsyncStorage.getItem("token");
         if (token) {
-          const response = await axios.get('http://192.168.29.79:4000/api/auth/verify', {
+          const response = await axios.get('http://192.168.1.5:4000/api/auth/verify', {
             headers: { Authorization: `Bearer ${token}` },
           });
-          console.log(response);
           setIsLoggedIn(response.data.valid);
         } else {
           setIsLoggedIn(false);
@@ -37,58 +166,44 @@ const AppNavigator = () => {
         setIsLoggedIn(false);
       }
       setIsLoading(false);
-      await SplashScreen.hideAsync(); // Hide splash screen after checking auth
+      await SplashScreen.hideAsync();
     };
-
     checkLoginStatus();
   }, []);
 
-  if (isLoading) {
-    return null; // Keep splash screen visible
-  }
-
-  console.log(Stack.Screen);
-
-  async function getData()
-  {
-    const data = AsyncStorage.getItem("isLoggedIn");
-    console.log(data);
-    setIsLoggedIn(data);
-  }
+  if (isLoading) return null;
 
   return (
     <NavigationContainer>
-     
-        {isLoggedIn ? (
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="Home" component={HomeScreen} />
-          </Stack.Navigator>
-        ) : (
-          <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {isLoggedIn ? (
+        <Drawer.Navigator drawerContent={({ navigation }) => <Sidebar navigation={navigation} />} screenOptions={{ headerShown: false }}>
+          <Drawer.Screen name="Main" component={StackNavigator} />
+        </Drawer.Navigator>
+      ) : (
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Register" component={RegisterScreen} />
-            <Stack.Screen name="Home" component={HomeScreen} />
-            </Stack.Navigator>
-        )}
-        
+          <Stack.Screen name="Register" component={RegisterScreen} />
+          <Stack.Screen name="Home" component={StackNavigator} />
+        </Stack.Navigator>
+      )}
     </NavigationContainer>
   );
 };
 
-
 export default function App() {
-  return (
-    <AppNavigator />
-  );
-}
+  return <AppNavigator />;
+};
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
+  headerContainer: { flexDirection: "row", alignItems: "center" },
+  headerImage: { width: 30, height: 30, marginRight: 10 },
+  header: { fontSize: 24, fontWeight: "bold", color: "#333" },
+  headerIcon: { marginHorizontal: 15 },
+  searchContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFF", borderRadius: 10, paddingHorizontal: 10, width: "100%", marginHorizontal: 70 },
+  searchInput: { flex: 1, fontSize: 18, paddingVertical: 5 },
+  drawerContainer: { flex: 1, paddingTop: 50, paddingLeft: 20 },
+  drawerItem: { marginBottom: 20, fontSize: 18 },
+  noteContainer: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
+  deleteButton: { marginLeft: 10 },
+  trashIcon: { width: 20, height: 20 },  // Set size of trash icon
 });
- 
