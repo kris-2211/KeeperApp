@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import { Text, TextInput, Button } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
+import { useAuth } from "../context/AuthContext";
 
 const LoginScreen = () => {
   const [email, setEmail] = useState("");
@@ -12,6 +13,7 @@ const LoginScreen = () => {
   const [passwordError, setPasswordError] = useState("");
   const [loading, setLoading] = useState(false);
   const navigation = useNavigation();
+  const { setIsLoggedIn } = useAuth();
 
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -36,7 +38,7 @@ const LoginScreen = () => {
 
     try {
       setLoading(true);
-      const response = await axios.post('http://192.168.1.5:4000/api/auth/login', {
+      const response = await axios.post('http://192.168.29.79:4000/api/auth/login', {
         email,
         password,
       });
@@ -44,7 +46,11 @@ const LoginScreen = () => {
       if (response.data.token) {
         await AsyncStorage.setItem("token", response.data.token);
         await AsyncStorage.setItem("isLoggedIn",JSON.stringify(true))
-        navigation.reset({ index: 0, routes: [{ name: "Home" }] });
+        await setIsLoggedIn(true);
+        navigation.reset({
+          index: 0, 
+          routes:[{ name: "Login" }],
+        });
       } else {
         Alert.alert("Login failed", "Invalid credentials");
       }

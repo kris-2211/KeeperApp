@@ -12,6 +12,8 @@ import RegisterScreen from "./screens/RegisterScreen";
 import HomeScreen from "./screens/HomeScreen";
 import NoteScreen from "./screens/NoteScreen";
 import { DrawerActions } from "@react-navigation/native";  // Import DrawerActions
+import { AuthProvider } from "./context/AuthContext";
+import { useAuth } from "./context/AuthContext";
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -19,7 +21,7 @@ SplashScreen.preventAutoHideAsync();
 
 const Sidebar = ({ navigation }) => {
   const [notes, setNotes] = useState([]); // Assuming you have a list of notes
-
+  const { setIsLoggedIn } = useAuth();
   // Function to fetch notes (or use any other way to store/fetch them)
   useEffect(() => {
     const fetchNotes = async () => {
@@ -57,7 +59,8 @@ const Sidebar = ({ navigation }) => {
     try {
       // Remove token from AsyncStorage to log the user out
       await AsyncStorage.removeItem("token");
-      navigation.navigate("Login");
+      await AsyncStorage.removeItem("isLoggedIn");
+      setIsLoggedIn(false);
     } catch (error) {
       console.error("Error logging out:", error);
     }
@@ -77,7 +80,7 @@ const Sidebar = ({ navigation }) => {
             style={styles.deleteButton}
             onPress={() => handleDeleteNote(note.id)}  // Pass note id to delete specific note
           >
-            <Image source={require("./assets/trash-icon.png")} style={styles.trashIcon} />
+            <Image source={require("./assets/trash.png")} style={styles.trashIcon} />
           </TouchableOpacity>
         </View>
       ))}
@@ -147,14 +150,14 @@ const StackNavigator = ({ navigation }) => {
 
 const AppNavigator = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const {isLoggedIn, setIsLoggedIn} = useAuth();
 
   useEffect(() => {
     const checkLoginStatus = async () => {
       try {
         const token = await AsyncStorage.getItem("token");
         if (token) {
-          const response = await axios.get('http://192.168.1.5:4000/api/auth/verify', {
+          const response = await axios.get('http://192.168.29.79:4000/api/auth/verify', {
             headers: { Authorization: `Bearer ${token}` },
           });
           setIsLoggedIn(response.data.valid);
@@ -183,7 +186,6 @@ const AppNavigator = () => {
         <Stack.Navigator screenOptions={{ headerShown: false }}>
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
-          <Stack.Screen name="Home" component={StackNavigator} />
         </Stack.Navigator>
       )}
     </NavigationContainer>
@@ -191,7 +193,12 @@ const AppNavigator = () => {
 };
 
 export default function App() {
-  return <AppNavigator />;
+
+  return(
+  <AuthProvider> 
+      <AppNavigator />
+  </AuthProvider>
+  );
 };
 
 const styles = StyleSheet.create({
