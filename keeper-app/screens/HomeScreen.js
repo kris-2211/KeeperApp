@@ -56,7 +56,7 @@ const HomeScreen = ({ navigation }) => {
       ) : (
         <FlatList
           data={notes}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item) => item._id}
           numColumns={2}
           renderItem={({ item }) => (
             <TouchableOpacity
