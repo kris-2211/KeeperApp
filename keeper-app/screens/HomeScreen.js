@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -7,55 +7,61 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const HomeScreen = ({ navigation }) => {
   const [notes, setNotes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filteredNotes, setFilteredNotes] = useState([]);
 
-  // Fetch notes from backend
-  useEffect( () => {
-    
+  useEffect(() => {
     const fetchNotes = async () => {
       try {
         const token = await AsyncStorage.getItem("token");
-    
         if (!token) {
           console.error("No token found");
           return;
         }
-    
-        // Make request with token in headers
         const response = await axios.get("http://192.168.29.79:4000/api/notes/", {
-          headers: {
-            Authorization: `Bearer ${token}`, // Include token
-          },
+          headers: { Authorization: `Bearer ${token}` },
         });
         setNotes(response.data.notes);
+        setFilteredNotes(response.data.notes);
       } catch (error) {
-        // Alert.alert('Error', 'Failed to fetch notes');
         console.error('Error fetching notes:', error);
       } finally {
         setLoading(false);
       }
     };
-    
-   fetchNotes();
+    fetchNotes();
   }, []);
-  
-  // Function to truncate content and show preview (first 30 characters)
-  const getPreview = (content) => {
-    if (!content) return '';
-    return content.length > 30 ? content.substring(0, 30) + '...' : content;
-  };
+
+  useEffect(() => {
+    const searchLower = searchQuery.toLowerCase();
+    setFilteredNotes(
+      notes.filter(
+        (note) =>
+          note.title.toLowerCase().includes(searchLower) ||
+          note.content.toLowerCase().includes(searchLower)
+      )
+    );
+  }, [searchQuery, notes]);
+
+  const getPreview = (content) => (content.length > 30 ? content.substring(0, 30) + '...' : content);
 
   return (
     <View style={styles.container}>
-      {/* Show loader while fetching notes */}
+      <TextInput
+        style={styles.searchBar}
+        placeholder="Search notes..."
+        value={searchQuery}
+        onChangeText={setSearchQuery}
+      />
       {loading ? (
         <ActivityIndicator size="large" color="#FF9800" />
-      ) : notes.length === 0 ? (
+      ) : filteredNotes.length === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>No notes found. Create one!</Text>
         </View>
       ) : (
         <FlatList
-          data={notes}
+          data={filteredNotes}
           keyExtractor={(item) => item._id}
           numColumns={2}
           renderItem={({ item }) => (
@@ -70,8 +76,6 @@ const HomeScreen = ({ navigation }) => {
           contentContainerStyle={{ paddingBottom: 80 }}
         />
       )}
-
-      {/* Floating Add Button */}
       <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('Note')}>
         <Ionicons name="add" size={30} color="white" />
       </TouchableOpacity>
@@ -86,6 +90,14 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: '#fff',
+  },
+  searchBar: {
+    height: 40,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    marginBottom: 10,
   },
   emptyContainer: {
     flex: 1,

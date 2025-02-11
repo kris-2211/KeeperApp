@@ -1,29 +1,34 @@
-import React, { useState, useEffect } from 'react';
-import { View, TextInput, StyleSheet, Text, TouchableOpacity, Alert } from 'react-native';
+import React, { useState, useEffect, useLayoutEffect } from 'react';
+import { View, TextInput, StyleSheet, Text, TouchableOpacity, Alert, Image } from 'react-native';
 import axios from 'axios'; 
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Ionicons } from '@expo/vector-icons'; // Importing Ionicons for the back arrow
 
 const NoteScreen = ({ route, navigation }) => {
-  // Retrieve the note passed from the Home screen (either for viewing/editing or adding a new note)
-  const { note } = route.params || {}; // Check if note exists
+  const { note } = route.params || {}; 
 
-  // State for holding the note's title and content (if editing an existing note)
   const [newNote, setNewNote] = useState({
     title: note ? note.title : '',
-
-    //TODO : category: note ? (note.category ? note.category : '' ): '',
-    
     content: note ? note.content : '',
   });
 
   useEffect(() => {
     if (note) {
-      // If note is passed, set the state to the note data for editing
       setNewNote({ title: note.title, content: note.content });
     }
   }, [note]);
 
-  // Function to add a new or update an existing note
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerLeft: () => (
+        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
+          <Ionicons name="arrow-back" size={24} color="black" />
+        </TouchableOpacity>
+      ),
+      headerRight: () => null,
+    });
+  }, [navigation]);
+
   const saveNote = async () => {
     if (!newNote.title || !newNote.content) {
       Alert.alert('Error', 'Please fill in both title and content');
@@ -39,7 +44,7 @@ const NoteScreen = ({ route, navigation }) => {
     try {
       if (note) {
         await axios.put(
-          `http://192.168.29.79:4000/api/notes/${note._id}`, // Corrected URL with slash
+          `http://192.168.29.79:4000/api/notes/${note._id}`, 
           newNote, 
           {
             headers: {
@@ -71,12 +76,55 @@ const NoteScreen = ({ route, navigation }) => {
       Alert.alert('Network Error', error.message);
     }
   };
-  
+
+  const deleteNote = async () => {
+    if (!note) return;
+
+    const token = await AsyncStorage.getItem("token");
+    
+    if (!token) {
+      console.error("No token found");
+      return;
+    }
+
+    Alert.alert(
+      "Delete Note",
+      "Are you sure you want to delete this note?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Delete",
+          onPress: async () => {
+            try {
+              await axios.delete(`http://192.168.29.79:4000/api/notes/${note._id}`, {
+                headers: {
+                  Authorization: `Bearer ${token}`
+                }
+              });
+
+              Alert.alert("Success", "Note deleted successfully");
+              navigation.navigate("Home", { refresh: true }); 
+            } catch (error) {
+              console.error("Error deleting note:", error);
+              Alert.alert("Error", "Failed to delete the note");
+            }
+          }
+        }
+      ]
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.header}>{note ? 'Edit Note' : 'Add New Note'}</Text>
-      
+      <View style={styles.headerContainer}>
+        <Text style={styles.header}>{note ? 'Edit Note' : 'Add New Note'}</Text>
+        {note && (
+          <TouchableOpacity onPress={deleteNote}>
+            <Image source={require('../assets/trash.png')} style={styles.deleteIcon} />
+          </TouchableOpacity>
+        )}
+      </View>
+
       <TextInput
         style={styles.title}
         placeholder="Title"
@@ -98,19 +146,29 @@ const NoteScreen = ({ route, navigation }) => {
   );
 };
 
-// Define your styles here
+// Styles remain unchanged
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
     backgroundColor: '#fff',
   },
+  headerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
   header: {
     fontSize: 24,
     fontWeight: 'bold',
-    marginBottom: 20,
     textAlign: 'center',
     color: '#333',
+  },
+  deleteIcon: {
+    width: 24,
+    height: 24,
+    tintColor: 'red',
   },
   input: {
     height: 40,
@@ -121,7 +179,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
   },
   inputContent: {
-    height: 80, // Adjust this as needed for the content area
+    height: 80,
   },
   addButton: {
     backgroundColor: '#FF9800',
