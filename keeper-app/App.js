@@ -133,14 +133,7 @@ const StackNavigator = ({ navigation }) => {
               <Ionicons name="menu" size={30} color="black" />
             </TouchableOpacity>
           )
-        ),
-        headerRight: () => (
-          !searchVisible && (
-            <TouchableOpacity onPress={toggleSearch} style={styles.headerIcon}>
-              <Ionicons name="search" size={30} color="black" />
-            </TouchableOpacity>
-          )
-        ),
+        )
       }}>
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="Note" component={NoteScreen} />
