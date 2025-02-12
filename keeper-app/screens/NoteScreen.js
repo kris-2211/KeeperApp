@@ -9,6 +9,7 @@ const NoteScreen = ({ route, navigation }) => {
 
   const [newNote, setNewNote] = useState({
     title: note ? note.title : '',
+    category :note ? note.category : '',
     content: note ? note.content : '',
   });
 
@@ -146,12 +147,12 @@ const NoteScreen = ({ route, navigation }) => {
   );
 };
 
-// Styles remain unchanged
+// Styles
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#F4F0FA', // Light purple background
   },
   headerContainer: {
     flexDirection: 'row',
@@ -163,26 +164,32 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
-    color: '#333',
+    color: '#4B0082', // Dark purple header
   },
   deleteIcon: {
     width: 24,
     height: 24,
-    tintColor: 'red',
+    tintColor: '#FF1744', // Bright red delete icon
   },
   input: {
     height: 40,
-    borderColor: '#ddd',
+    borderColor: '#A780D5', // Soft purple border
     borderWidth: 1,
     marginBottom: 10,
     paddingLeft: 10,
     borderRadius: 5,
+    backgroundColor: '#FFFFFF',
   },
   inputContent: {
     height: 80,
+    borderColor: '#A780D5', // Soft purple border
+    borderWidth: 1,
+    borderRadius: 5,
+    padding: 10,
+    backgroundColor: '#FFFFFF',
   },
   addButton: {
-    backgroundColor: '#FF9800',
+    backgroundColor: '#6A0DAD', // Deep purple button
     padding: 15,
     borderRadius: 5,
     alignItems: 'center',
@@ -191,12 +198,14 @@ const styles = StyleSheet.create({
   title: {
     height: 50,
     fontSize: 20,
-    borderColor: '#ddd',
+    borderColor: '#A780D5', // Soft purple border
     borderWidth: 1,
     marginBottom: 10,
     paddingLeft: 10,
     borderRadius: 5,
-  }
+    backgroundColor: '#FFFFFF',
+  },
 });
+
 
 export default NoteScreen;
