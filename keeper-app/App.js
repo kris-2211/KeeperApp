@@ -11,22 +11,22 @@ import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
 import HomeScreen from "./screens/HomeScreen";
 import NoteScreen from "./screens/NoteScreen";
-import { DrawerActions } from "@react-navigation/native";  // Import DrawerActions
+import { DrawerActions } from "@react-navigation/native";
 import { AuthProvider } from "./context/AuthContext";
 import { useAuth } from "./context/AuthContext";
+import Toast from "react-native-toast-message";  // Import Toast
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
 SplashScreen.preventAutoHideAsync();
 
 const Sidebar = ({ navigation }) => {
-  const [notes, setNotes] = useState([]); // Assuming you have a list of notes
+  const [notes, setNotes] = useState([]);
   const { setIsLoggedIn } = useAuth();
-  // Function to fetch notes (or use any other way to store/fetch them)
+
   useEffect(() => {
     const fetchNotes = async () => {
       try {
-        // Fetch your notes from AsyncStorage or API
         const storedNotes = await AsyncStorage.getItem("notes");
         if (storedNotes) {
           setNotes(JSON.parse(storedNotes));
@@ -38,53 +38,73 @@ const Sidebar = ({ navigation }) => {
     fetchNotes();
   }, []);
 
-  // Function to delete a specific note
   const handleDeleteNote = async (noteId) => {
     try {
-      // Filter out the note you want to delete
       const updatedNotes = notes.filter(note => note.id !== noteId);
-      
-      // Save updated notes to AsyncStorage or your API
       await AsyncStorage.setItem("notes", JSON.stringify(updatedNotes));
-      
-      // Update the state
       setNotes(updatedNotes);
-      alert("Note deleted successfully!");
+
+      Toast.show({
+        type: "success",
+        text1: "Deleted",
+        text2: "Note deleted successfully!",
+        position : "top",
+      });
+
     } catch (error) {
       console.error("Error deleting note:", error);
+
+      Toast.show({
+        type: "error",
+        text1: "Error",
+        text2: "Failed to delete the note.",
+        position : "top",
+      });
     }
   };
 
   const handleLogout = async () => {
     try {
-      // Remove token from AsyncStorage to log the user out
       await AsyncStorage.removeItem("token");
       await AsyncStorage.removeItem("isLoggedIn");
       setIsLoggedIn(false);
+
+      Toast.show({
+        type: "info",
+        text1: "Logged Out",
+        text2: "You have been logged out successfully!",
+        position : "top",
+      });
+
     } catch (error) {
       console.error("Error logging out:", error);
+
+      Toast.show({
+        type: "error",
+        text1: "Logout Failed",
+        text2: "Something went wrong.",
+        position : "top",
+      });
     }
   };
 
   return (
     <View style={styles.drawerContainer}>
-      <TouchableOpacity style={styles.drawerItem} onPress={() => handleLogout()}>
+      <TouchableOpacity style={styles.drawerItem} onPress={handleLogout}>
         <Text>Logout</Text>
       </TouchableOpacity>
-      
-      {/* Iterate through notes and display delete button for each */}
+
       {notes.map(note => (
         <View key={note.id} style={styles.noteContainer}>
           <Text>{note.title}</Text>
           <TouchableOpacity 
             style={styles.deleteButton}
-            onPress={() => handleDeleteNote(note.id)}  // Pass note id to delete specific note
+            onPress={() => handleDeleteNote(note.id)}
           >
             <Image source={require("./assets/trash.png")} style={styles.trashIcon} />
           </TouchableOpacity>
         </View>
       ))}
-      
     </View>
   );
 };
@@ -122,12 +142,12 @@ const StackNavigator = ({ navigation }) => {
             </View>
           )
         ),
-        headerStyle: { backgroundColor: "#FFEB3B", height: 100 },
+        headerStyle: { backgroundColor: "#F4E1FF", height: 100 },
         headerTitleAlign: "center",
         headerLeft: () => (
           !searchVisible && (
             <TouchableOpacity
-              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}  // Use DrawerActions here
+              onPress={() => navigation.dispatch(DrawerActions.openDrawer())}
               style={styles.headerIcon}
             >
               <Ionicons name="menu" size={30} color="black" />
@@ -143,7 +163,7 @@ const StackNavigator = ({ navigation }) => {
 
 const AppNavigator = () => {
   const [isLoading, setIsLoading] = useState(true);
-  const {isLoggedIn, setIsLoggedIn} = useAuth();
+  const { isLoggedIn, setIsLoggedIn } = useAuth();
 
   useEffect(() => {
     const checkLoginStatus = async () => {
@@ -186,24 +206,24 @@ const AppNavigator = () => {
 };
 
 export default function App() {
-
-  return(
-  <AuthProvider> 
+  return (
+    <AuthProvider>
       <AppNavigator />
-  </AuthProvider>
+      <Toast />
+    </AuthProvider>
   );
 };
 
 const styles = StyleSheet.create({
-  headerContainer: { flexDirection: "row", alignItems: "center" },
+  headerContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "#F4E1FF" },
   headerImage: { width: 30, height: 30, marginRight: 10 },
-  header: { fontSize: 24, fontWeight: "bold", color: "#333" },
+  header: { fontSize: 24, fontWeight: "bold", color: "#4B0082" },
   headerIcon: { marginHorizontal: 15 },
-  searchContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "#FFF", borderRadius: 10, paddingHorizontal: 10, width: "100%", marginHorizontal: 70 },
-  searchInput: { flex: 1, fontSize: 18, paddingVertical: 5 },
-  drawerContainer: { flex: 1, paddingTop: 50, paddingLeft: 20 },
-  drawerItem: { marginBottom: 20, fontSize: 18 },
-  noteContainer: { flexDirection: "row", alignItems: "center", marginBottom: 20 },
+  searchContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "#E6D8F3", borderRadius: 10, paddingHorizontal: 10, width: "100%", marginHorizontal: 70 },
+  searchInput: { flex: 1, fontSize: 18, paddingVertical: 5, color: "#4B0082" },
+  drawerContainer: { flex: 1, paddingTop: 50, paddingLeft: 20, backgroundColor: "#F4F0FA" },
+  drawerItem: { marginBottom: 20, fontSize: 18, color: "#6A0DAD" },
+  noteContainer: { flexDirection: "row", alignItems: "center", marginBottom: 20, backgroundColor: "#F4E1FF", padding: 10, borderRadius: 10 },
   deleteButton: { marginLeft: 10 },
-  trashIcon: { width: 20, height: 20 },  // Set size of trash icon
+  trashIcon: { width: 20, height: 20, tintColor: "#FF1744" }
 });

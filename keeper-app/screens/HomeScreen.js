@@ -89,15 +89,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#F4F0FA', // Light purple background
   },
   searchBar: {
     height: 40,
-    borderColor: '#ccc',
+    borderColor: '#A780D5', // Soft purple border
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 10,
     marginBottom: 10,
+    backgroundColor: '#FFFFFF',
   },
   emptyContainer: {
     flex: 1,
@@ -106,12 +107,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 18,
-    color: '#888',
+    color: '#6A0DAD', // Deep purple text
     textAlign: 'center',
   },
   noteCard: {
     width: '45%',
-    backgroundColor: '#FFEB3B',
+    backgroundColor: '#D8BFD8', // Light lavender card
     padding: 15,
     margin: 8,
     borderRadius: 10,
@@ -124,18 +125,18 @@ const styles = StyleSheet.create({
   noteTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#4B0082', // Dark purple title
   },
   noteContent: {
     fontSize: 14,
     marginTop: 5,
-    color: '#555',
+    color: '#4B0082', // Dark purple content
   },
   addButton: {
     position: 'absolute',
     right: 20,
     bottom: 20,
-    backgroundColor: '#FF9800',
+    backgroundColor: '#6A0DAD', // Deep purple floating button
     padding: 15,
     borderRadius: 50,
     elevation: 5,
