@@ -3,6 +3,8 @@ import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, 
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { IP_CONFIG } from '@env';
+import { useFocusEffect } from '@react-navigation/native'; // Import for refreshing notes
 
 const HomeScreen = ({ navigation }) => {
   const [notes, setNotes] = useState([]);
@@ -10,49 +12,64 @@ const HomeScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredNotes, setFilteredNotes] = useState([]);
 
-  useEffect(() => {
-    const fetchNotes = async () => {
-      try {
-        const token = await AsyncStorage.getItem("token");
-        if (!token) {
-          console.error("No token found");
-          return;
-        }
-        const response = await axios.get("http://192.168.29.79:4000/api/notes/", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setNotes(response.data.notes);
-        setFilteredNotes(response.data.notes);
-      } catch (error) {
-        console.error('Error fetching notes:', error);
-      } finally {
-        setLoading(false);
+  // 🔄 Fetch Notes from Backend
+  const fetchNotes = async () => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      if (!token) {
+        console.error("No token found");
+        return;
       }
-    };
-    fetchNotes();
-  }, []);
+      const response = await axios.get(`http://${IP_CONFIG}:4000/api/notes/`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setNotes(response.data.notes);
+      setFilteredNotes(response.data.notes);
+    } catch (error) {
+      console.error('Error fetching notes:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // 👇 Run fetchNotes when the screen is focused (ensures data is fresh)
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchNotes();
+    }, [])
+  );
+
+  // 🔍 Handle Search (Fix for structured content)
   useEffect(() => {
     const searchLower = searchQuery.toLowerCase();
     setFilteredNotes(
-      notes.filter(
-        (note) =>
-          note.title.toLowerCase().includes(searchLower) ||
-          note.content.toLowerCase().includes(searchLower)
+      notes.filter((note) =>
+        note.title.toLowerCase().includes(searchLower) ||
+        (note.content
+          .map((item) => (item.type === "text" ? item.text.toLowerCase() : ""))
+          .join(" ")
+          .includes(searchLower))
       )
     );
   }, [searchQuery, notes]);
 
-  const getPreview = (content) => (content.length > 30 ? content.substring(0, 30) + '...' : content);
+  // 📌 Extract text preview from structured content
+  const getPreview = (content) => {
+    const textItems = content.filter(item => item.type === "text").map(item => item.text);
+    return textItems.length > 0 ? (textItems[0].length > 30 ? textItems[0].substring(0, 30) + '...' : textItems[0]) : "No text content";
+  };
 
   return (
     <View style={styles.container}>
+      {/* 🔎 Search Bar */}
       <TextInput
         style={styles.searchBar}
         placeholder="Search notes..."
         value={searchQuery}
         onChangeText={setSearchQuery}
       />
+
+      {/* ⏳ Show Loading Indicator */}
       {loading ? (
         <ActivityIndicator size="large" color="#FF9800" />
       ) : filteredNotes.length === 0 ? (
@@ -76,6 +93,8 @@ const HomeScreen = ({ navigation }) => {
           contentContainerStyle={{ paddingBottom: 80 }}
         />
       )}
+
+      {/* ➕ Floating Add Button */}
       <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('Note')}>
         <Ionicons name="add" size={30} color="white" />
       </TouchableOpacity>

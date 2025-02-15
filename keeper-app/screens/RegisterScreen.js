@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { View, Alert, StyleSheet } from "react-native";
 import axios from "axios";
 import { Text, TextInput, Button } from "react-native-paper";
-
+import {IP_CONFIG} from '@env';
 
 
 const RegisterScreen = ({ navigation }) => {
@@ -44,7 +44,7 @@ const RegisterScreen = ({ navigation }) => {
 
     try {
       setLoading(true);
-      const response = await axios.post('http://192.168.29.79:4000/api/auth/register', {
+      const response = await axios.post(`http://${IP_CONFIG}:4000/api/auth/register`, {
         fullname,
         email,
         password,
