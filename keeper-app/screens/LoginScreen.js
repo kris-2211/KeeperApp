@@ -5,6 +5,7 @@ import axios from "axios";
 import { Text, TextInput, Button } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
+import {IP_CONFIG} from '@env';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState("");
@@ -38,7 +39,7 @@ const LoginScreen = () => {
 
     try {
       setLoading(true);
-      const response = await axios.post('http://192.168.29.79:4000/api/auth/login', {
+      const response = await axios.post(`http://${IP_CONFIG}:4000/api/auth/login`, {
         email,
         password,
       });
