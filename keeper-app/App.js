@@ -16,6 +16,7 @@ import LoginScreen from "./screens/LoginScreen";
 import RegisterScreen from "./screens/RegisterScreen";
 import HomeScreen from "./screens/HomeScreen";
 import NoteScreen from "./screens/NoteScreen";
+import ProfileScreen from "./screens/ProfileScreen";
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -70,13 +71,23 @@ const Sidebar = ({ navigation }) => {
       Toast.show({ type: "error", text1: "Logout Failed", text2: "Something went wrong." });
     }
   };
-
+  const goToProfile = () => {
+    navigation.navigate("Main", { screen: "Profile" });
+  };
+  const goToHome = () => {
+    navigation.navigate("Main", { screen: "Home"});
+  }
   return (
     <View style={styles.drawerContainer}>
+      <TouchableOpacity style={styles.drawerItem} onPress={goToHome}>
+      <Text>Home</Text>
+      </TouchableOpacity>
+      <TouchableOpacity style={styles.drawerItem} onPress={goToProfile}>
+        <Text>Profile</Text>
+      </TouchableOpacity>
       <TouchableOpacity style={styles.drawerItem} onPress={handleLogout}>
         <Text>Logout</Text>
       </TouchableOpacity>
-
       {notes.map((note) => (
         <View key={note.id} style={styles.noteContainer}>
           <Text>{note.title}</Text>
@@ -128,6 +139,7 @@ const StackNavigator = ({ navigation }) => {
     >
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="Note" component={NoteScreen} />
+      <Stack.Screen name="Profile" component={ProfileScreen} />
     </Stack.Navigator>
   );
 };
