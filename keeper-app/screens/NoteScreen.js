@@ -1,281 +1,370 @@
-import React, { useState, useEffect, useLayoutEffect } from 'react';
-import { View, TextInput, StyleSheet, Text, TouchableOpacity, Alert, Image, ScrollView } from 'react-native';
-import axios from 'axios'; 
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
-import { IP_CONFIG } from '@env';
+import React, { useRef, useState } from "react";
+import {
+  View,
+  TextInput,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+  ScrollView,
+  Platform,
+  FlatList,
+} from "react-native";
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { IP_CONFIG } from "@env";
+import { WebView } from "react-native-webview";
+
+// HTML for the custom rich text editor
+const editorHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { font-family: sans-serif; padding: 10px; margin: 0; }
+    #editor { 
+      min-height: 250px; 
+      border: none; 
+      padding: 10px; 
+      outline: none; 
+      font-size: 16px;
+      line-height: 24px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <div id="editor" contenteditable="true"></div>
+  <script>
+    function sendContent() {
+      window.ReactNativeWebView.postMessage(document.getElementById('editor').innerHTML);
+    }
+
+    function updateToolbar() {
+      const toolbarState = JSON.stringify({
+        bold: document.queryCommandState('bold'),
+        italic: document.queryCommandState('italic'),
+        underline: document.queryCommandState('underline'),
+      });
+      window.ReactNativeWebView.postMessage(toolbarState);
+    }
+
+    document.getElementById('editor').addEventListener('input', () => {
+      sendContent();
+      updateToolbar();
+    });
+
+    document.addEventListener("message", function(event) {
+      const command = event.data;
+      document.execCommand(command, false, null);
+      sendContent();
+      updateToolbar();
+    });
+  </script>
+</body>
+</html>
+`;
 
 const NoteScreen = ({ route, navigation }) => {
-  const { note } = route.params || {}; 
-
-  const [progress, setProgress] = useState(0);
-
-  const [editMode, setEditMode] = useState(false); // Toggle for editing mode
-
-  const [newNote, setNewNote] = useState({
-    title: note ? note.title : '',
-    category: note ? note.category : '',
-    content: note ? note.content : [],
+  const { note } = route.params || {};
+  const webViewRef = useRef(null);
+  const [title, setTitle] = useState(note ? note.title : "");
+  // Ensure content is a string (default empty if note not provided)
+  const [content, setContent] = useState(note ? note.content : "");
+  const [checklist, setChecklist] = useState(note ? note.checklist || [] : []);
+  const [toolbarState, setToolbarState] = useState({
+    bold: false,
+    italic: false,
+    underline: false,
   });
 
-  useEffect(() => {
-    if (note) {
-      setNewNote({
-        title: note.title,
-        category: note.category || '',
-        content: note.content ? [...note.content] : [],
-      });
-    } else {
-      setNewNote({
-        title: '',
-        category: '',
-        content: [],
-      });
+  // Update content from the RTE
+  const onMessage = (event) => {
+    try {
+      const data = JSON.parse(event.nativeEvent.data);
+      if (typeof data === "object" && data !== null) {
+        setToolbarState(data);
+        return;
+      }
+    } catch (error) {
+      setContent(event.nativeEvent.data);
     }
-  }, [note]);
+  };
 
-  useEffect(() => {
-    const checkboxes = newNote.content.filter(item => item.type === "checkbox");
-    if (checkboxes.length === 0) {
-      setProgress(0);
-      return;
+  // Send commands to the editor
+  const sendCommand = (command) => {
+    if (webViewRef.current) {
+      webViewRef.current.postMessage(command);
     }
-    
-    const checkedCount = checkboxes.filter(item => item.checked).length;
-    setProgress(checkedCount / checkboxes.length);
-  }, [newNote.content]);
-
-  
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerLeft: () => (
-        <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginLeft: 15 }}>
-          <Ionicons name="arrow-back" size={24} color="black" />
-        </TouchableOpacity>
-      ),
-      headerRight: () => (
-        <TouchableOpacity onPress={() => setEditMode(!editMode)} style={{ marginRight: 15 }}>
-          <Ionicons name={editMode ? "checkmark-done-outline" : "create-outline"} size={24} color="black" />
-        </TouchableOpacity>
-      ),
-    });
-  }, [navigation, editMode]);
-
-  const handleChangeContent = (index, key, value) => {
-    setNewNote((prevNote) => {
-      const updatedContent = [...prevNote.content];
-      updatedContent[index] = { ...updatedContent[index], [key]: value };
-      return { ...prevNote, content: updatedContent };
-    });
-  };
-  
-  const deleteContentItem = (index) => {
-    setNewNote((prevNote) => {
-      const updatedContent = [...prevNote.content];
-      updatedContent.splice(index, 1); // Remove item at index
-      return { ...prevNote, content: updatedContent };
-    });
-  };
-  
-  const addNewContent = (type) => {
-    setNewNote({
-      ...newNote,
-      content: [...newNote.content, { type, text: "", checked: false, imageUrl: "" }]
-    });
   };
 
+  // Checklist functions
+  const addChecklistItem = () => {
+    setChecklist([...checklist, { text: "", checked: false }]);
+  };
+
+  const toggleCheckbox = (index) => {
+    const updatedChecklist = checklist.map((item, i) =>
+      i === index ? { ...item, checked: !item.checked } : item
+    );
+    setChecklist(updatedChecklist);
+  };
+
+  const updateChecklistText = (index, text) => {
+    const updatedChecklist = checklist.map((item, i) =>
+      i === index ? { ...item, text } : item
+    );
+    setChecklist(updatedChecklist);
+  };
+
+  const deleteChecklistItem = (index) => {
+    setChecklist(checklist.filter((_, i) => i !== index));
+  };
+
+  // Calculate checklist completion percentage
+  const completionPercentage = checklist.length
+    ? (checklist.filter((item) => item.checked).length / checklist.length) * 100
+    : 0;
+
+  // Save Note
   const saveNote = async () => {
     const token = await AsyncStorage.getItem("token");
-
-  
     if (!token) {
-      Alert.alert("Error", "Authentication token is missing. Please log in again.");
+      alert("Error: Authentication token is missing. Please log in again.");
       return;
     }
-  
+    const newNote = { title, content, checklist };
+    const url = note
+      ? `http://${IP_CONFIG}:4000/api/notes/${note._id}`
+      : `http://${IP_CONFIG}:4000/api/notes`;
+    const method = note ? "put" : "post";
     try {
-      const url = note ? `http://${IP_CONFIG}:4000/api/notes/${note._id}` : `http://${IP_CONFIG}:4000/api/notes`;
-      const method = note ? "put" : "post";
-  
-      const response = await axios({
+      await axios({
         method,
         url,
         data: newNote,
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       });
-  
-      console.log("✅ Response:", response.data);
-  
-      Alert.alert("Success", note ? "Note updated successfully" : "New note added successfully");
+      alert(note ? "Note updated" : "New note created");
       navigation.navigate("Home", { refresh: true });
-  
-    } catch (error) {
-      console.error("❌ Error saving note:", error.response?.data || error.message);
-      Alert.alert("Error", error.response?.data?.message || "Failed to save the note.");
+    } catch (err) {
+      alert("Error saving note.");
     }
   };
-  
 
+  // Delete Note
   const deleteNote = async () => {
-    if (!note) return;
     const token = await AsyncStorage.getItem("token");
     if (!token) {
-      console.error("No token found");
+      alert("Error: Authentication token is missing. Please log in again.");
       return;
     }
-
-    Alert.alert(
-      "Delete Note",
-      "Are you sure you want to delete this note?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          onPress: async () => {
-            try {
-              await axios.delete(`http://${IP_CONFIG}:4000/api/notes/${note._id}`, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-
-              Alert.alert("Success", "Note deleted successfully");
-              navigation.navigate("Home", { refresh: true }); 
-            } catch (error) {
-              console.error("Error deleting note:", error);
-              Alert.alert("Error", "Failed to delete the note");
-            }
-          }
-        }
-      ]
-    );
+    try {
+      await axios.delete(`http://${IP_CONFIG}:4000/api/notes/${note._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      alert("Note deleted");
+      navigation.navigate("Home", { refresh: true });
+    } catch (err) {
+      alert("Error deleting note.");
+    }
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.headerContainer}>
-        <Text style={styles.header}>{note ? 'Edit Note' : 'Add New Note'}</Text>
-        {note && (
-          <TouchableOpacity onPress={deleteNote}>
-            <Image source={require('../assets/trash.png')} style={styles.deleteIcon} />
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="always"
+        keyboardDismissMode="none"
+      >
+        <TextInput
+          style={styles.title}
+          placeholder="Title"
+          value={title}
+          onChangeText={setTitle}
+        />
+
+        {/* Rich Text Editor Toolbar */}
+        <View style={styles.toolbar}>
+          {[
+            { command: "bold", icon: "format-bold", active: toolbarState.bold },
+            { command: "italic", icon: "format-italic", active: toolbarState.italic },
+            { command: "underline", icon: "format-underline", active: toolbarState.underline },
+            { command: "insertUnorderedList", icon: "format-list-bulleted" },
+            { command: "insertOrderedList", icon: "format-list-numbered" },
+          ].map(({ command, icon, active }) => (
+            <TouchableOpacity
+              key={command}
+              onPress={() => sendCommand(command)}
+              style={[styles.toolbarButton, active && styles.activeButton]}
+            >
+              <MaterialCommunityIcons name={icon} size={20} color="#6A0DAD" />
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Rich Text Editor */}
+        <View style={styles.editorContainer}>
+          <WebView
+            ref={webViewRef}
+            originWhitelist={["*"]}
+            source={{ html: editorHtml }}
+            onMessage={onMessage}
+            javaScriptEnabled
+            style={styles.webView}
+            injectedJavaScript={`document.getElementById("editor").innerHTML = ${JSON.stringify(content)}; true;`}
+          />
+        </View>
+
+        {/* Checklist Section */}
+        <View style={styles.listHeader}>
+          <Text style={styles.listTitle}>List</Text>
+          <TouchableOpacity onPress={addChecklistItem}>
+            <MaterialCommunityIcons name="plus-circle-outline" size={24} color="#6A0DAD" />
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
 
-      <TextInput
-        style={styles.title}
-        placeholder="Title"
-        value={newNote.title}
-        onChangeText={(text) => setNewNote({ ...newNote, title: text })}
-      />
-
-      <View style={styles.contentContainer}>
-        <ScrollView style={styles.scrollView}>
-          {newNote.content.length === 0 && (
-            <Text style={styles.placeholderText}>Content</Text>
-          )}
-          {newNote.content.map((item, index) => (
-            <View key={index} style={styles.contentItem}>        
-              {item.type === "text" && (
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter text..."
-                  value={item.text}
-                  onChangeText={(text) => handleChangeContent(index, "text", text)}
-                  editable={editMode} 
-                >
-                </TextInput>
-              )}
-              {item.type === "checkbox" && (
-                <TouchableOpacity 
-                  style={styles.checkboxContainer} 
-                  onPress={() => editMode && handleChangeContent(index, "checked", !item.checked)}
-                >
-                  <Ionicons name={item.checked ? "checkbox" : "square-outline"} size={24} color="#6A0DAD" />
-                  <TextInput
-                    style={styles.inputCheckbox}
-                    placeholder="Checklist item"
-                    value={item.text}
-                    onChangeText={(text) => handleChangeContent(index, "text", text)}
-                    editable={editMode} 
-                  />
-                </TouchableOpacity>
-              )}
-              {item.type === "image" && (
-                <View>
-                  {editMode ? (
-                    <TextInput
-                      style={styles.input}
-                      placeholder="Image URL"
-                      value={item.imageUrl}
-                      onChangeText={(text) => handleChangeContent(index, "imageUrl", text)}
-                    />
-                  ) : (
-                    item.imageUrl ? <Image source={{ uri: item.imageUrl }} style={styles.imagePreview} /> : null
-                  )}
-                </View>
-              )}
-              { editMode &&
-                  <TouchableOpacity onPress={() => deleteContentItem(index)} style={styles.deleteIconContainer}>
-                    <Ionicons name="trash-outline" size={15} color="red" />
-                  </TouchableOpacity> 
-                }
+        <View>
+          {checklist.map((item, index) => (
+            <View key={index} style={styles.checklistItem}>
+              <TouchableOpacity onPress={() => toggleCheckbox(index)}>
+                <MaterialCommunityIcons
+                  name={item.checked ? "checkbox-marked-outline" : "checkbox-blank-outline"}
+                  size={24}
+                  color="#6A0DAD"
+                />
+              </TouchableOpacity>
+              <TextInput
+                style={[
+                  styles.checklistText,
+                  item.checked && styles.checkedText,
+                ]}
+                value={item.text}
+                onChangeText={(text) => updateChecklistText(index, text)}
+                placeholder="Checklist item"
+              />
+              <TouchableOpacity onPress={() => deleteChecklistItem(index)}>
+                <MaterialCommunityIcons name="trash-can-outline" size={22} color="red" />
+              </TouchableOpacity>
             </View>
           ))}
-          {newNote.content.some(item => item.type === "checkbox") && (
-            <View style={styles.progressContainer}>
-              <View style={[styles.progressBar, { width: `${progress * 100}%` }]} />
-            </View>
-          )}
-        </ScrollView>
-      </View>
+        </View>
 
-      <View style={styles.buttonRow}>
-        <TouchableOpacity style={styles.addButton} onPress={() => addNewContent("text")}>
-          <Ionicons name="text" size={24} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.addButton} onPress={() => addNewContent("checkbox")}>
-          <Ionicons name="checkbox-outline" size={24} color="white" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.addButton} onPress={() => addNewContent("image")}>
-          <Ionicons name="image-outline" size={24} color="white" />
-        </TouchableOpacity>
-      </View>
+        {/* Progress Bar */}
+        {checklist.length > 0 && (
+          <View style={styles.progressContainer}>
+            <View style={[styles.progressBar, { width: `${completionPercentage}%` }]} />
+          </View>
+        )}
 
-      <TouchableOpacity style={styles.saveButton} onPress={saveNote}>
-        <Text style={styles.buttonText}>{note ? 'Save Changes' : 'Add Note'}</Text>
-      </TouchableOpacity>
-    </View>
+        {/* Save Button */}
+        <TouchableOpacity style={styles.saveButton} onPress={saveNote}>
+          <Text style={styles.buttonText}>{note ? "Save Changes" : "Add Note"}</Text>
+        </TouchableOpacity>
+
+        {/* Delete Button (only show if editing an existing note) */}
+        {note && (
+          <TouchableOpacity style={styles.deleteButton} onPress={deleteNote}>
+            <Text style={styles.deleteButtonText}>Delete Note</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 };
 
-// Styles
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, backgroundColor: '#F4F0FA' },
-  headerContainer: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-  header: { fontSize: 24, fontWeight: 'bold', color: '#4B0082' },
-  deleteIcon: { width: 24, height: 24, tintColor: '#FF1744' },
-  title: { height: 50, fontSize: 20, borderColor: '#A780D5', borderWidth: 1, marginBottom: 10, paddingLeft: 10, borderRadius: 5, backgroundColor: '#FFFFFF' },
-  input: { width : 250, marginTop: 5, height: 40, borderColor: '#A780D5', borderWidth: 1, marginBottom: 10, paddingLeft: 10, borderRadius: 5, backgroundColor: '#FFFFFF' },
-  inputCheckbox: { marginLeft: 10, fontSize: 16 },
-  checkboxContainer: { flexDirection: "row", alignItems: "center", marginBottom: 10 },
-  imagePreview: { width: "100%", height: 200, resizeMode: "cover", marginTop: 10 },
-  buttonRow: { flexDirection: "row", justifyContent: "space-around", marginVertical: 10 },
-  addButton: { backgroundColor: '#6A0DAD', padding: 10, borderRadius: 50 },
-  saveButton: { backgroundColor: '#6A0DAD', padding: 15, borderRadius: 5, alignItems: 'center', marginTop: 20 },
-  buttonText: { color: 'white', fontWeight: 'bold' },
-  placeholderText: {color : 'rgba(0,0,0,0.5)', fontSize: 20},
-  contentItem: {display: 'flex', flexDirection: 'row'},
-  contentContainer : { display: 'flex', flexDirection : 'column', alignItems : 'center', height: 250, fontSize: 20, borderColor: '#A780D5', borderWidth: 1, marginBottom: 10, paddingLeft: 10, borderRadius: 5, backgroundColor: '#FFFFFF'},
+  container: { flex: 1, backgroundColor: "#F4F0FA" },
+  scrollContainer: { flexGrow: 1, padding: 20 },
+  title: {
+    height: 50,
+    fontSize: 20,
+    borderColor: "#A780D5",
+    borderWidth: 1,
+    marginBottom: 10,
+    paddingLeft: 10,
+    borderRadius: 5,
+    backgroundColor: "#FFFFFF",
+  },
+  toolbar: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    paddingVertical: 10,
+    backgroundColor: "#f3f3f3",
+    marginBottom: 10,
+  },
+  toolbarButton: {
+    padding: 10,
+    borderRadius: 5,
+  },
+  activeButton: {
+    backgroundColor: "#ddd",
+  },
+  editorContainer: {
+    flex: 1,
+    minHeight: 250,
+    borderColor: "#A780D5",
+    borderWidth: 1,
+    borderRadius: 5,
+    backgroundColor: "#FFFFFF",
+    marginBottom: 20,
+  },
+  webView: {
+    flex: 1,
+    backgroundColor: "transparent",
+  },
+  listHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  listTitle: { fontSize: 18, fontWeight: "bold", color: "#6A0DAD" },
+  checklistItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderColor: "#ccc",
+  },
+  checklistText: { flex: 1, marginLeft: 10, fontSize: 16, color: "#000" },
+  checkedText: { color: "gray" },
   progressContainer: {
     height: 10,
     backgroundColor: "#E0E0E0",
     borderRadius: 5,
-    overflow: "hidden",
-    marginBottom: 10,
+    marginVertical: 10,
   },
   progressBar: {
     height: "100%",
     backgroundColor: "#6A0DAD",
-  }  
+  },
+  saveButton: {
+    backgroundColor: "#6A0DAD",
+    padding: 15,
+    borderRadius: 5,
+    alignItems: "center",
+    marginTop: 20,
+  },
+  buttonText: { color: "white", fontWeight: "bold" },
+  deleteButton: {
+    backgroundColor: "red",
+    padding: 15,
+    borderRadius: 5,
+    alignItems: "center",
+    marginTop: 10,
+  },
+  deleteButtonText: { color: "white", fontWeight: "bold" },
 });
 
 export default NoteScreen;
