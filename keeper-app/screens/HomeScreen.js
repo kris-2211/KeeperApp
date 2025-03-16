@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, ActivityIndicator, TextInput } from 'react-native';
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  TouchableOpacity, 
+  StyleSheet, 
+  ActivityIndicator, 
+  TextInput 
+} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IP_CONFIG } from '@env';
-import { useFocusEffect } from '@react-navigation/native'; // Import for refreshing notes
+import { useFocusEffect } from '@react-navigation/native';
 
 const HomeScreen = ({ navigation }) => {
   const [notes, setNotes] = useState([]);
@@ -12,7 +20,7 @@ const HomeScreen = ({ navigation }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredNotes, setFilteredNotes] = useState([]);
 
-  // 🔄 Fetch Notes from Backend
+  // Fetch Notes from Backend
   const fetchNotes = async () => {
     try {
       const token = await AsyncStorage.getItem("token");
@@ -32,36 +40,33 @@ const HomeScreen = ({ navigation }) => {
     }
   };
 
-  // 👇 Run fetchNotes when the screen is focused (ensures data is fresh)
+  // Run fetchNotes when the screen is focused (ensures data is fresh)
   useFocusEffect(
     React.useCallback(() => {
       fetchNotes();
     }, [])
   );
 
-  // 🔍 Handle Search (Fix for structured content)
+  // Handle Search: only filter by note title now
   useEffect(() => {
     const searchLower = searchQuery.toLowerCase();
     setFilteredNotes(
       notes.filter((note) =>
-        note.title.toLowerCase().includes(searchLower) ||
-        (note.content
-          .map((item) => (item.type === "text" ? item.text.toLowerCase() : ""))
-          .join(" ")
-          .includes(searchLower))
+        note.title.toLowerCase().includes(searchLower)
       )
     );
   }, [searchQuery, notes]);
 
-  // 📌 Extract text preview from structured content
-  const getPreview = (content) => {
-    const textItems = content.filter(item => item.type === "text").map(item => item.text);
-    return textItems.length > 0 ? (textItems[0].length > 30 ? textItems[0].substring(0, 30) + '...' : textItems[0]) : "No text content";
+  // Format the createdAt date into a local date string
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toLocaleDateString();
   };
 
   return (
     <View style={styles.container}>
-      {/* 🔎 Search Bar */}
+      {/* Search Bar */}
       <TextInput
         style={styles.searchBar}
         placeholder="Search notes..."
@@ -69,7 +74,7 @@ const HomeScreen = ({ navigation }) => {
         onChangeText={setSearchQuery}
       />
 
-      {/* ⏳ Show Loading Indicator */}
+      {/* Loading Indicator or Empty State */}
       {loading ? (
         <ActivityIndicator size="large" color="#FF9800" />
       ) : filteredNotes.length === 0 ? (
@@ -80,21 +85,20 @@ const HomeScreen = ({ navigation }) => {
         <FlatList
           data={filteredNotes}
           keyExtractor={(item) => item._id}
-          numColumns={2}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.noteCard}
               onPress={() => navigation.navigate('Note', { note: item })}
             >
               <Text style={styles.noteTitle}>{item.title}</Text>
-              <Text style={styles.noteContent}>{getPreview(item.content)}</Text>
+              <Text style={styles.noteDate}>{formatDate(item.createdAt)}</Text>
             </TouchableOpacity>
           )}
           contentContainerStyle={{ paddingBottom: 80 }}
         />
       )}
 
-      {/* ➕ Floating Add Button */}
+      {/* Floating Add Button */}
       <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('Note')}>
         <Ionicons name="add" size={30} color="white" />
       </TouchableOpacity>
@@ -130,10 +134,10 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   noteCard: {
-    width: '45%',
+    width: '100%', // Single column list: full width card
     backgroundColor: '#D8BFD8', // Light lavender card
     padding: 15,
-    margin: 8,
+    marginBottom: 10,
     borderRadius: 10,
     elevation: 3,
     shadowColor: '#000',
@@ -146,10 +150,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#4B0082', // Dark purple title
   },
-  noteContent: {
+  noteDate: {
     fontSize: 14,
     marginTop: 5,
-    color: '#4B0082', // Dark purple content
+    color: '#4B0082', // Dark purple text for date
   },
   addButton: {
     position: 'absolute',

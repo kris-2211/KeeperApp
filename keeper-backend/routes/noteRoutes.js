@@ -24,13 +24,19 @@ const authenticate = async (req, res, next) => {
 // Create a Note
 router.post("/", authenticate, async (req, res) => {
   try {
-    const { title, content } = req.body;
+    const { title, content, checklist } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ success: false, message: "Title and content are required." });
     }
 
-    const note = new Note({ user: req.user._id, title, content });
+    // Create the note with checklist (if provided)
+    const note = new Note({
+      user: req.user._id,
+      title,
+      content,
+      checklist, // checklist can be an empty array or array of items
+    });
     await note.save();
 
     req.user.notes.push(note._id);
@@ -45,9 +51,7 @@ router.post("/", authenticate, async (req, res) => {
 // Get All Notes for Logged-in User
 router.get("/", authenticate, async (req, res) => {
   try {
-    
     const notes = await Note.find({ user: req.user._id });
-    
     res.json({ success: true, notes });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
@@ -57,9 +61,9 @@ router.get("/", authenticate, async (req, res) => {
 // Update a Note
 router.put("/:id", authenticate, async (req, res) => {
   try {
-    const { title, content } = req.body;
+    const { title, content, checklist } = req.body;
     const note = await Note.findById(req.params.id);
-   
+
     if (!note || note.user.toString() !== req.user._id.toString()) {
       return res.status(404).json({ success: false, message: "Note not found" });
     }
@@ -70,6 +74,7 @@ router.put("/:id", authenticate, async (req, res) => {
 
     note.title = title;
     note.content = content;
+    note.checklist = checklist; // Update the checklist field
     await note.save();
 
     res.json({ success: true, note });
@@ -77,7 +82,6 @@ router.put("/:id", authenticate, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error." });
   }
 });
-
 
 // Delete a Note
 router.delete("/:id", authenticate, async (req, res) => {

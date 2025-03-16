@@ -3,13 +3,11 @@ const mongoose = require("mongoose");
 const NoteSchema = new mongoose.Schema({
   user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Note belongs to a user
   title: { type: String, required: true },
-  content: [
+  content: { type: String, default: "" }, // Rich text content from the editor
+  checklist: [
     {
-      _id: false, // Prevents MongoDB from auto-generating IDs for array elements
-      type: { type: String, enum: ["text", "checkbox", "image"], required: true }, // Type of content
-      text: { type: String }, // For text content
-      checked: { type: Boolean, default: false }, // For checkboxes
-      imageUrl: { type: String }, // For image content
+      text: { type: String, default: "" },  // Label for the checklist item
+      checked: { type: Boolean, default: false } // Status of the checklist item
     }
   ],
   location: { 
