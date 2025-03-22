@@ -5,7 +5,8 @@ import axios from "axios";
 import { Text, TextInput, Button } from "react-native-paper";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
-import {IP_CONFIG} from '@env';
+import { IP_CONFIG } from "@env";
+import * as Location from "expo-location";
 
 const LoginScreen = () => {
   const [email, setEmail] = useState("");
@@ -29,6 +30,15 @@ const LoginScreen = () => {
     return "";
   };
 
+  const requestLocationPermission = async () => {
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permission Denied", "Location permission is required to use this app.");
+      return false;
+    }
+    return true;
+  };
+
   const handleLogin = async () => {
     setEmailError(validateEmail(email));
     setPasswordError(validatePassword(password));
@@ -45,8 +55,14 @@ const LoginScreen = () => {
       });
 
       if (response.data.token) {
+        const permissionGranted = await requestLocationPermission();
+        if (!permissionGranted) {
+          setLoading(false);
+          return;
+        }
+
         await AsyncStorage.setItem("token", response.data.token);
-        await AsyncStorage.setItem("isLoggedIn",JSON.stringify(true))
+        await AsyncStorage.setItem("isLoggedIn", JSON.stringify(true));
         await setIsLoggedIn(true);
         navigation.reset({
           index: 0, 

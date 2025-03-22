@@ -21,24 +21,25 @@ const authenticate = async (req, res, next) => {
   }
 };
 
-// Create a Note
+// Create a Note (Now includes location)
 router.post("/", authenticate, async (req, res) => {
   try {
-    const { title, content, checklist } = req.body;
+    const { title, content, checklist, location } = req.body;
 
     if (!title || !content) {
       return res.status(400).json({ success: false, message: "Title and content are required." });
     }
 
-    // Create the note with checklist (if provided)
+    // Create the note with optional location
     const note = new Note({
       user: req.user._id,
       title,
       content,
-      checklist, // checklist can be an empty array or array of items
+      checklist,
+      location: location && location.coordinates.length === 2 ? location : undefined,
     });
-    await note.save();
 
+    await note.save();
     req.user.notes.push(note._id);
     await req.user.save();
 
@@ -48,7 +49,7 @@ router.post("/", authenticate, async (req, res) => {
   }
 });
 
-// Get All Notes for Logged-in User
+// Get All Notes for Logged-in User (Includes location data)
 router.get("/", authenticate, async (req, res) => {
   try {
     const notes = await Note.find({ user: req.user._id });
@@ -58,10 +59,10 @@ router.get("/", authenticate, async (req, res) => {
   }
 });
 
-// Update a Note
+// Update a Note (Now supports updating location)
 router.put("/:id", authenticate, async (req, res) => {
   try {
-    const { title, content, checklist } = req.body;
+    const { title, content, checklist, location } = req.body;
     const note = await Note.findById(req.params.id);
 
     if (!note || note.user.toString() !== req.user._id.toString()) {
@@ -74,10 +75,36 @@ router.put("/:id", authenticate, async (req, res) => {
 
     note.title = title;
     note.content = content;
-    note.checklist = checklist; // Update the checklist field
-    await note.save();
+    note.checklist = checklist;
+    note.location = location && location.coordinates.length === 2 ? location : note.location;
 
+    await note.save();
     res.json({ success: true, note });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
+// Get Notes Near User Location (For background task notifications)
+router.get("/nearby", authenticate, async (req, res) => {
+  try {
+    const { longitude, latitude, radius = 500 } = req.query; // Radius in meters
+
+    if (!longitude || !latitude) {
+      return res.status(400).json({ success: false, message: "Longitude and latitude are required." });
+    }
+
+    const nearbyNotes = await Note.find({
+      user: req.user._id,
+      location: {
+        $near: {
+          $geometry: { type: "Point", coordinates: [parseFloat(longitude), parseFloat(latitude)] },
+          $maxDistance: parseInt(radius),
+        },
+      },
+    });
+
+    res.json({ success: true, notes: nearbyNotes });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
   }

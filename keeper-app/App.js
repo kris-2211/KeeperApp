@@ -10,6 +10,7 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import Toast from "react-native-toast-message";
 import * as SplashScreen from "expo-splash-screen";
 import { IP_CONFIG } from "@env";
+import { startLocationTracking, stopLocationTracking } from "./backgroundTasks";
 
 // Import Screens
 import LoginScreen from "./screens/LoginScreen";
@@ -17,6 +18,7 @@ import RegisterScreen from "./screens/RegisterScreen";
 import HomeScreen from "./screens/HomeScreen";
 import NoteScreen from "./screens/NoteScreen";
 import ProfileScreen from "./screens/ProfileScreen";
+import LocationPicker from "./screens/LocationPicker";
 
 const Stack = createStackNavigator();
 const Drawer = createDrawerNavigator();
@@ -40,28 +42,11 @@ const Sidebar = ({ navigation }) => {
     fetchNotes();
   }, []);
 
-  const handleDeleteNote = async (noteId) => {
-    try {
-      const token = await AsyncStorage.getItem("token");
-      await axios.delete(`http://${IP_CONFIG}:4000/api/notes/${noteId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
-      setNotes((prevNotes) => prevNotes.filter((note) => note.id !== noteId));
-
-      Toast.show({ type: "success", text1: "Deleted", text2: "Note deleted successfully!" });
-
-      navigation.closeDrawer();
-    } catch (error) {
-      console.error("Error deleting note:", error);
-      Toast.show({ type: "error", text1: "Error", text2: "Failed to delete the note." });
-    }
-  };
-
   const handleLogout = async () => {
     try {
       await AsyncStorage.removeItem("token");
       setIsLoggedIn(false);
+      await stopLocationTracking();
 
       Toast.show({ type: "info", text1: "Logged Out", text2: "You have been logged out." });
 
@@ -140,6 +125,7 @@ const StackNavigator = ({ navigation }) => {
       <Stack.Screen name="Home" component={HomeScreen} />
       <Stack.Screen name="Note" component={NoteScreen} />
       <Stack.Screen name="Profile" component={ProfileScreen} />
+      <Stack.Screen name="LocationPicker" component={LocationPicker} />
     </Stack.Navigator>
   );
 };
@@ -158,11 +144,15 @@ const AppNavigator = () => {
             headers: { Authorization: `Bearer ${token}` },
           });
           setIsLoggedIn(response.data.valid);
+          if (response.data.valid) {
+            await startLocationTracking();
+            console.log("Location tracking started");
+          }
         } else {
           setIsLoggedIn(false);
         }
       } catch (error) {
-        console.error("Error verifying token:", error);
+        console.log("No token found", error);
         setIsLoggedIn(false);
       }
       setIsLoading(false);

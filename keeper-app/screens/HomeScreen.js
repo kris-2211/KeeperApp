@@ -8,7 +8,7 @@ import {
   ActivityIndicator, 
   TextInput 
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { IP_CONFIG } from '@env';
@@ -90,7 +90,12 @@ const HomeScreen = ({ navigation }) => {
               style={styles.noteCard}
               onPress={() => navigation.navigate('Note', { note: item })}
             >
-              <Text style={styles.noteTitle}>{item.title}</Text>
+              <View style={styles.noteHeader}>
+                <Text style={styles.noteTitle}>{item.title}</Text>
+                {item.location && (
+                  <MaterialCommunityIcons name="map-marker" size={20} color="#6A0DAD" />
+                )}
+              </View>
               <Text style={styles.noteDate}>{formatDate(item.createdAt)}</Text>
             </TouchableOpacity>
           )}
@@ -144,6 +149,11 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 3,
+  },
+  noteHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   noteTitle: {
     fontSize: 16,

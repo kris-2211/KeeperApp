@@ -7,10 +7,11 @@ const UserSchema = new mongoose.Schema({
   password: { type: String, required: true },
   avatar: { type: String, default: "default.png" },
   notes: [{ type: mongoose.Schema.Types.ObjectId, ref: "Note" }],
+  locationPermission: { type: Boolean, default: false }, // ✅ Store location permission
 });
 
- // Hash password before saving
- UserSchema.pre("save", async function (next) {
+// Hash password before saving
+UserSchema.pre("save", async function (next) {
   if (!this.isModified("password")) return next();
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);

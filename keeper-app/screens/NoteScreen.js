@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import {
   View,
   TextInput,
@@ -8,7 +8,6 @@ import {
   KeyboardAvoidingView,
   ScrollView,
   Platform,
-  FlatList,
 } from "react-native";
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -79,6 +78,9 @@ const NoteScreen = ({ route, navigation }) => {
     italic: false,
     underline: false,
   });
+  const [location, setLocation] = useState(note ? note.location : null);
+
+  const initialContentInjected = useRef(false);
 
   // Update content from the RTE
   const onMessage = (event) => {
@@ -99,6 +101,14 @@ const NoteScreen = ({ route, navigation }) => {
       webViewRef.current.postMessage(command);
     }
   };
+
+  // Inject content into the WebView when the component mounts or when the note is loaded
+  useEffect(() => {
+    if (webViewRef.current && !initialContentInjected.current) {
+      webViewRef.current.injectJavaScript(`document.getElementById("editor").innerHTML = ${JSON.stringify(content)}; true;`);
+      initialContentInjected.current = true;
+    }
+  }, [note]);
 
   // Checklist functions
   const addChecklistItem = () => {
@@ -135,7 +145,7 @@ const NoteScreen = ({ route, navigation }) => {
       alert("Error: Authentication token is missing. Please log in again.");
       return;
     }
-    const newNote = { title, content, checklist };
+    const newNote = { title, content, checklist, location };
     const url = note
       ? `http://${IP_CONFIG}:4000/api/notes/${note._id}`
       : `http://${IP_CONFIG}:4000/api/notes`;
@@ -175,6 +185,14 @@ const NoteScreen = ({ route, navigation }) => {
     }
   };
 
+  // Navigate to Location Picker
+  const pickLocation = () => {
+    navigation.navigate("LocationPicker", {
+      setLocation,
+      initialLocation: location,
+    });
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -186,12 +204,17 @@ const NoteScreen = ({ route, navigation }) => {
         keyboardShouldPersistTaps="always"
         keyboardDismissMode="none"
       >
-        <TextInput
-          style={styles.title}
-          placeholder="Title"
-          value={title}
-          onChangeText={setTitle}
-        />
+        <View style={styles.titleContainer}>
+          <TextInput
+            style={styles.title}
+            placeholder="Title"
+            value={title}
+            onChangeText={setTitle}
+          />
+          <TouchableOpacity onPress={pickLocation}>
+            <MaterialCommunityIcons name="map-marker" size={24} color="#6A0DAD" />
+          </TouchableOpacity>
+        </View>
 
         {/* Rich Text Editor Toolbar */}
         <View style={styles.toolbar}>
@@ -221,7 +244,6 @@ const NoteScreen = ({ route, navigation }) => {
             onMessage={onMessage}
             javaScriptEnabled
             style={styles.webView}
-            injectedJavaScript={`document.getElementById("editor").innerHTML = ${JSON.stringify(content)}; true;`}
           />
         </View>
 
@@ -285,15 +307,22 @@ const NoteScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F4F0FA" },
   scrollContainer: { flexGrow: 1, padding: 20 },
+  titleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
   title: {
     height: 50,
     fontSize: 20,
     borderColor: "#A780D5",
     borderWidth: 1,
-    marginBottom: 10,
     paddingLeft: 10,
     borderRadius: 5,
     backgroundColor: "#FFFFFF",
+    flex: 1,
+    marginRight: 10,
   },
   toolbar: {
     flexDirection: "row",
