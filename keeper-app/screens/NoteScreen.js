@@ -78,7 +78,7 @@ const NoteScreen = ({ route, navigation }) => {
     italic: false,
     underline: false,
   });
-  const [location, setLocation] = useState(note ? note.location : null);
+  const [location, setLocation] = useState(note && note.location ? note.location : { type: "Point", coordinates: [0, 0] });
 
   const initialContentInjected = useRef(false);
 
