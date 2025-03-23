@@ -37,6 +37,7 @@ router.post("/", authenticate, async (req, res) => {
       content,
       checklist,
       location: location && location.coordinates.length === 2 ? location : undefined,
+      collaborators: req.user.email
     });
 
     await note.save();
@@ -49,23 +50,13 @@ router.post("/", authenticate, async (req, res) => {
   }
 });
 
-// Get All Notes for Logged-in User (Includes location data)
-router.get("/", authenticate, async (req, res) => {
-  try {
-    const notes = await Note.find({ user: req.user._id });
-    res.json({ success: true, notes });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Server error." });
-  }
-});
-
 // Update a Note (Now supports updating location)
 router.put("/:id", authenticate, async (req, res) => {
   try {
     const { title, content, checklist, location } = req.body;
     const note = await Note.findById(req.params.id);
 
-    if (!note || note.user.toString() !== req.user._id.toString()) {
+    if (!note) {
       return res.status(404).json({ success: false, message: "Note not found" });
     }
 
@@ -127,5 +118,91 @@ router.delete("/:id", authenticate, async (req, res) => {
     res.status(500).json({ success: false, message: "Server error." });
   }
 });
+
+router.get("/:id/owner", authenticate, async (req, res) => {
+  try{
+    const note = await Note.findById(req.params.id);
+    if(!note){
+      return res.status(404).json({ success: false, message: "Note not found" });
+    }
+    const owner = await User.findOne({_id : note.user.toString()});
+    res.json({ success: true, message: "Owner fetched successfully", owner });
+  }
+  catch (error) {
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+})
+
+// ✅ Add a Collaborator to a Note
+router.put("/:id/add-collaborator", authenticate, async (req, res) => {
+  try {
+    const { collaboratorEmail } = req.body;
+    const note = await Note.findById(req.params.id);
+    if (!note) return res.status(404).json({ success: false, message: "Note not found" });
+
+    // Ensure user is the owner
+    const owner = await User.findOne({_id : note.user.toString()});
+    if (note.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Not authorized to add collaborators, request " + 
+        owner.fullname + " (Owner) to add them instead"});
+    }
+
+    // Find collaborator user
+    const collaborator = await User.findOne({ email: collaboratorEmail });
+    if (!collaborator) return res.status(404).json({ success: false, message: "User not found" });
+
+    // Check if already added
+    if (note.collaborators?.includes(collaboratorEmail)) {
+      return res.status(400).json({ success: false, message: "User is already a collaborator" });
+    }
+
+    // Add collaborator email
+    note.collaborators = note.collaborators || [];
+    note.collaborators.push(collaboratorEmail);
+    await note.save();
+
+    res.json({ success: true, message: "Collaborator added successfully", note });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
+// ✅ Remove a Collaborator from a Note
+router.put("/:id/remove-collaborator", authenticate, async (req, res) => {
+  try {
+    const { collaboratorEmail } = req.body;
+    const note = await Note.findById(req.params.id);
+    if (!note) return res.status(404).json({ success: false, message: "Note not found" });
+
+    // Ensure user is the owner
+    const owner = await User.findOne({_id : note.user.toString()});
+    if (note.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: "Not authorized to remove collaborators, request " + 
+        owner.fullname + " (Owner) to remove them instead" });
+    }
+
+    // Remove collaborator email
+    note.collaborators = note.collaborators?.filter((email) => email !== collaboratorEmail);
+    await note.save();
+
+    res.json({ success: true, message: "Collaborator removed successfully", note });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
+// ✅ Get All Notes (Include Collaborators)
+router.get("/", authenticate, async (req, res) => {
+  try {
+    const notes = await Note.find({
+      $or: [{ user: req.user._id }, { collaborators: req.user.email }], // Check for user email in collaborators
+    });
+
+    res.json({ success: true, notes });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
 
 module.exports = router;

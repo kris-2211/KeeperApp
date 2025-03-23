@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { Modal } from "react-native";
+import { Modal, ScrollView } from "react-native";
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
 import * as ImagePicker from "expo-image-picker";
+import { MaterialCommunityIcons } from "@expo/vector-icons"; // Import the icon component
 import { IP_CONFIG } from "@env";
 
 // Import Local Avatars
@@ -150,111 +151,127 @@ const ProfileScreen = () => {
   }
 
   return (
-    <View style={styles.profileContainer}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerText}>User Profile</Text>
-      </View>
+    <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <View style={styles.profileContainer}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerText}>User Profile</Text>
+        </View>
 
-      {/* Avatar at the Top */}
-      <TouchableOpacity onPress={isEditing ? pickImage : viewImage} style={styles.avatarContainer}>
-        <Image source={getAvatarSource()} style={styles.avatar} />
-      </TouchableOpacity>
-  
-      {/* Full-Screen Image Modal */}
-      <Modal visible={isModalVisible} transparent={true}>
-        <TouchableOpacity style={styles.modalContainer} onPress={() => setIsModalVisible(false)}>
-          <Image source={getAvatarSource()} style={styles.fullscreenImage} />
-        </TouchableOpacity>
-      </Modal>
-  
-      {/* Full Name - Editable */}
-      <TextInput
-        style={[styles.input, isEditing ? styles.editableInput : styles.nonEditableInput]}
-        value={user.fullname}
-        onChangeText={(text) => setUser({ ...user, fullname: text })}
-        editable={isEditing}
-        placeholder="Full Name"
-        placeholderTextColor="#888"
-      />
-  
-      {/* Email - Editable */}
-      {isEditing ? (
+        {/* Avatar at the Top */}
+        <View style={styles.avatarWrapper}>
+          <TouchableOpacity onPress={isEditing ? pickImage : viewImage}>
+            <Image source={getAvatarSource()} style={styles.avatar} />
+          </TouchableOpacity>
+          {isEditing && ( // Show edit icon only in editing mode
+            <View style={styles.editIconContainer}>
+              <MaterialCommunityIcons name="pencil" size={20} color="#6A0DAD" onPress={pickImage}/>
+            </View>
+          )}
+        </View>
+
+        {/* Full-Screen Image Modal */}
+        <Modal visible={isModalVisible} transparent={true}>
+          <TouchableOpacity style={styles.modalContainer} onPress={() => setIsModalVisible(false)}>
+            <Image source={getAvatarSource()} style={styles.fullscreenImage} />
+          </TouchableOpacity>
+        </Modal>
+
+        {/* Full Name - Editable */}
         <TextInput
-          style={[styles.input, styles.editableInput]}
-          value={user.email}
-          onChangeText={(text) => setUser({ ...user, email: text })}
+          style={[styles.input, isEditing ? styles.editableInput : styles.nonEditableInput]}
+          value={user.fullname}
+          onChangeText={(text) => setUser({ ...user, fullname: text })}
           editable={isEditing}
-          placeholder="Email"
+          placeholder="Full Name"
           placeholderTextColor="#888"
         />
-      ) : (
-        <View style={styles.emailContainer}>
-          <Text style={styles.emailLabel}>Email: </Text>
-          <Text style={styles.emailText}>{user.email}</Text>
-        </View>
-      )}
-  
-      {/* Edit/Save Button */}
-      <TouchableOpacity
-        style={[styles.editButton, isEditing ? styles.saveButton : {}]}
-        onPress={() => (isEditing ? handleUpdateProfile() : setIsEditing(true))}
-      >
-        <Text style={styles.buttonText}>{isEditing ? "Save Changes" : "Edit Profile"}</Text>
-      </TouchableOpacity>
-  
-      {/* Change Password Section */}
-      <TouchableOpacity style={styles.passwordToggle} onPress={() => setShowPasswordFields(!showPasswordFields)}>
-        <Text style={styles.passwordToggleText}>Change Password</Text>
-      </TouchableOpacity>
-  
-      {showPasswordFields && (
-        <View style={styles.passwordContainer}>
+
+        {/* Email - Editable */}
+        {isEditing ? (
           <TextInput
-            style={styles.passwordInput}
-            placeholder="Old Password"
+            style={[styles.input, styles.editableInput]}
+            value={user.email}
+            onChangeText={(text) => setUser({ ...user, email: text })}
+            editable={isEditing}
+            placeholder="Email"
             placeholderTextColor="#888"
-            secureTextEntry
-            value={oldPassword}
-            onChangeText={setOldPassword}
           />
-          <TextInput
-            style={styles.passwordInput}
-            placeholder="New Password"
-            placeholderTextColor="#888"
-            secureTextEntry
-            value={newPassword}
-            onChangeText={setNewPassword}
-          />
-          <TouchableOpacity style={styles.changePasswordButton} onPress={handleChangePassword}>
-            <Text style={styles.buttonText}>Update Password</Text>
-          </TouchableOpacity>
-        </View>
-      )}
-    </View>
+        ) : (
+          <View style={styles.emailContainer}>
+            <Text style={styles.emailLabel}>Email: </Text>
+            <Text style={styles.emailText}>{user.email}</Text>
+          </View>
+        )}
+
+        {/* Edit/Save Button */}
+        <TouchableOpacity
+          style={[styles.editButton, isEditing ? styles.saveButton : {}]}
+          onPress={() => (isEditing ? handleUpdateProfile() : setIsEditing(true))}
+        >
+          <Text style={styles.buttonText}>{isEditing ? "Save Changes" : "Edit Profile"}</Text>
+        </TouchableOpacity>
+
+        {/* Change Password Section */}
+        <TouchableOpacity style={styles.passwordToggle} onPress={() => setShowPasswordFields(!showPasswordFields)}>
+          <Text style={styles.passwordToggleText}>{showPasswordFields ? "Change Password (Hide)" : "Change Password"} </Text>
+        </TouchableOpacity>
+
+        {showPasswordFields && (
+          <View style={styles.passwordContainer}>
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="Old Password"
+              placeholderTextColor="#888"
+              secureTextEntry
+              value={oldPassword}
+              onChangeText={setOldPassword}
+            />
+            <TextInput
+              style={styles.passwordInput}
+              placeholder="New Password"
+              placeholderTextColor="#888"
+              secureTextEntry
+              value={newPassword}
+              onChangeText={setNewPassword}
+            />
+            <TouchableOpacity style={styles.changePasswordButton} onPress={handleChangePassword}>
+              <Text style={styles.buttonText}>Update Password</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+    </ScrollView>
   );
 };
 
 // Styles
 const styles = StyleSheet.create({
+  scrollContainer: {
+    flexGrow: 1,
+  },
   header: {
-    width: "100%",
+    width: "120%",
     alignItems: "center",
+    marginTop: -20,
+    paddingVertical: 20,
+    backgroundColor: "#4B0082",
+    marginBottom: 20,
   },
   headerText: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "bold",
-    color: "#4B0082",
+    color: "#FFF",
   },
   profileContainer: {
     flex: 1,
     alignItems: "center",
-    backgroundColor: "#F4F0FA",
+    backgroundColor: "rgba(255, 182, 193, 0.3)",
     padding: 20,
   },
-  avatarContainer: {
-    marginTop: 20,
-    marginBottom: 10
+  avatarWrapper: {
+    position: "relative", // Required for absolute positioning of the edit icon
+    marginBottom: 20,
   },
   avatar: {
     width: 120,
@@ -262,6 +279,21 @@ const styles = StyleSheet.create({
     borderRadius: 60,
     borderWidth: 2,
     borderColor: "#6A0DAD",
+  },
+  editIconContainer: {
+    position: "absolute",
+    top: "50%", // Center vertically
+    left: "18%", // Center horizontally
+    transform: [{ translateX: -10 }, { translateY: -10 }],
+    opacity : 0.7, // Adjust based on icon size
+    backgroundColor: "white",
+    borderRadius: 10,
+    padding: 5,
+    elevation: 3, // For shadow (Android)
+    shadowColor: "#000", // For shadow (iOS)
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
   },
   input: {
     width: "100%",
@@ -277,7 +309,7 @@ const styles = StyleSheet.create({
   nonEditableInput: {
     backgroundColor: "transparent",
     borderWidth: 0,
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "bold",
     textAlign: "center",
     color: "#4B0082",
