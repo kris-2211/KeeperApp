@@ -1,0 +1,46 @@
+// filepath: e:\keeperApp\keeper-app\config.js
+import 'dotenv/config';
+
+export default {
+  expo: {
+    name: "keeper-app",
+    slug: "keeper-app",
+    version: "1.0.0",
+    orientation: "portrait",
+    userInterfaceStyle: "light",
+    newArchEnabled: true,
+    splash: {
+      image: "./assets/image.png",
+      resizeMode: "contain",
+      backgroundColor: "#ffffff"
+    },
+    ios: {
+      supportsTablet: true
+    },
+    android: {
+      adaptiveIcon: {
+        backgroundColor: "#ffffff"
+      },
+      config: {
+        googleMaps: {
+          apiKey: process.env.GOOGLE_MAPS_API_KEY
+        }
+      },
+      package: "com.codekrieas.keeperapp",
+      permissions: [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "NOTIFICATIONS"
+      ]
+    },
+    web: {},
+    extra: {
+      eas: {
+        projectId: "e50c6ce9-0309-45b9-9791-a9b1ce4bdffc"
+      }
+    },
+    owner: "codekrieas"
+  }
+};

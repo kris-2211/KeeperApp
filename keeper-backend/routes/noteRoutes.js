@@ -89,11 +89,11 @@ router.put("/:id", authenticate, async (req, res) => {
 router.get("/nearby", authenticate, async (req, res) => {
   try {
     const { longitude, latitude, radius = 500 } = req.query; // Radius in meters
-
+    
     if (!longitude || !latitude) {
       return res.status(400).json({ success: false, message: "Longitude and latitude are required." });
     }
-
+    
     const nearbyNotes = await Note.find({
       user: req.user._id,
       location: {
@@ -103,10 +103,11 @@ router.get("/nearby", authenticate, async (req, res) => {
         },
       },
     });
-
-    res.json({ success: true, notes: nearbyNotes });
+    
+    console.log(nearbyNotes)
+    res.json({ success: true, found:true,  notes: nearbyNotes});
   } catch (error) {
-    res.status(500).json({ success: false, message: "Server error." });
+    res.json({ found: false, message: "No notes nearby." });
   }
 });
 

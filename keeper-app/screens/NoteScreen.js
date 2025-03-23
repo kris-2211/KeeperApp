@@ -70,7 +70,6 @@ const NoteScreen = ({ route, navigation }) => {
   const { note } = route.params || {};
   const webViewRef = useRef(null);
   const [title, setTitle] = useState(note ? note.title : "");
-  // Ensure content is a string (default empty if note not provided)
   const [content, setContent] = useState(note ? note.content : "");
   const [checklist, setChecklist] = useState(note ? note.checklist || [] : []);
   const [toolbarState, setToolbarState] = useState({
