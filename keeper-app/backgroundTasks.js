@@ -4,8 +4,11 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { IP_CONFIG } from '@env';
+import { navigationRef } from './navigationRef';
 
 const LOCATION_TASK_NAME = 'background-location-task';
+let lastNotificationTime = 0;
+const DEBOUNCE_INTERVAL = 60000; // 1 minute
 
 // Define the background task for location tracking
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
@@ -32,15 +35,26 @@ const checkNearbyNotes = async (latitude, longitude) => {
       return;
     }
 
+    const currentTime = Date.now();
+    if (currentTime - lastNotificationTime < DEBOUNCE_INTERVAL) {
+      console.log('Debounced: Too soon to check for nearby notes again.');
+      return;
+    }
+
     const response = await axios.get(`http://${IP_CONFIG}:4000/api/notes/nearby`, {
       params: { latitude, longitude, radius: 500 }, // Adjust radius as needed
       headers: { Authorization: `Bearer ${token}` },
     });
+    console.log("latitude and longitude", latitude, longitude);
+    console.log(response.data);
 
-    const { notes } = response.data;
-    if (notes.length > 0) {
-      for (const note of notes) {
-        await sendNotification(note);
+    if (response.data.found) {
+      const { notes } = response.data;
+      if (notes.length > 0) {
+        for (const note of notes) {
+          await sendNotification(note);
+        }
+        lastNotificationTime = currentTime; // Update the last notification time
       }
     }
   } catch (error) {
@@ -48,13 +62,23 @@ const checkNearbyNotes = async (latitude, longitude) => {
   }
 };
 
+// Configure notification handler
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
 // Function to send a notification
 const sendNotification = async (note) => {
+  console.log("Sending notification");
   await Notifications.scheduleNotificationAsync({
     content: {
       title: 'Nearby Note',
       body: `You are near the location of the note: ${note.title}`,
-      data: { noteId: note._id },
+      data: { note },
     },
     trigger: null,
   });
@@ -66,6 +90,7 @@ export const startLocationTracking = async () => {
   if (status === 'granted') {
     await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
       accuracy: Location.Accuracy.High,
+      deferredUpdatesDistance: 100, // meters
       distanceInterval: 100, // Adjust distance interval as needed
     });
   } else {
@@ -80,10 +105,9 @@ export const stopLocationTracking = async () => {
 
 // Handle notification response
 Notifications.addNotificationResponseReceivedListener((response) => {
-  const { noteId } = response.notification.request.content.data;
-  if (noteId) {
-    // Navigate to the NoteScreen with the noteId
-    // Assuming you have a navigation reference set up
-    navigationRef.current?.navigate('Note', { noteId });
+  const { note } = response.notification.request.content.data;
+  if (note) {
+    // Navigate to the NoteScreen with the note data
+    navigationRef.navigate('Note', { note });
   }
 });

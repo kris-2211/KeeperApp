@@ -2,15 +2,20 @@ import React, { useEffect, useState } from "react";
 import { View, Text, Image, TouchableOpacity, TextInput, StyleSheet } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import axios from "axios";
-import { NavigationContainer, DrawerActions, useFocusEffect } from "@react-navigation/native";
+import { NavigationContainer, DrawerActions } from "@react-navigation/native";
 import { createStackNavigator } from "@react-navigation/stack";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { Ionicons } from "@expo/vector-icons";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Toast from "react-native-toast-message";
 import * as SplashScreen from "expo-splash-screen";
+import * as Notifications from 'expo-notifications';
 import { IP_CONFIG } from "@env";
 import { startLocationTracking, stopLocationTracking } from "./backgroundTasks";
+import { enableScreens } from "react-native-screens";
+import { navigationRef } from './navigationRef';
+
+enableScreens(); 
 
 // Import Screens
 import LoginScreen from "./screens/LoginScreen";
@@ -56,16 +61,19 @@ const Sidebar = ({ navigation }) => {
       Toast.show({ type: "error", text1: "Logout Failed", text2: "Something went wrong." });
     }
   };
+
   const goToProfile = () => {
     navigation.navigate("Main", { screen: "Profile" });
   };
+
   const goToHome = () => {
     navigation.navigate("Main", { screen: "Home"});
   }
+
   return (
     <View style={styles.drawerContainer}>
       <TouchableOpacity style={styles.drawerItem} onPress={goToHome}>
-      <Text>Home</Text>
+        <Text>Home</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.drawerItem} onPress={goToProfile}>
         <Text>Profile</Text>
@@ -164,7 +172,7 @@ const AppNavigator = () => {
   if (isLoading) return null;
 
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       {isLoggedIn ? (
         <Drawer.Navigator drawerContent={({ navigation }) => <Sidebar navigation={navigation} />} screenOptions={{ headerShown: false }}>
           <Drawer.Screen name="Main" component={StackNavigator} />

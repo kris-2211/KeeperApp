@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { View, TextInput, StyleSheet, TouchableOpacity, Text } from "react-native";
-import MapView, { Marker } from "react-native-maps";
+import MapView, { Marker,PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import Constants from 'expo-constants';
 
 const LocationPicker = ({ route, navigation }) => {
   const { setLocation, initialLocation } = route.params;
@@ -77,6 +78,7 @@ const LocationPicker = ({ route, navigation }) => {
         </TouchableOpacity>
       </View>
       <MapView
+        provider={PROVIDER_GOOGLE}
         style={styles.map}
         region={region}
         onRegionChangeComplete={setRegion}

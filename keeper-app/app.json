@@ -23,9 +23,16 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_FINE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
-        "FOREGROUND_SERVICE"
+        "FOREGROUND_SERVICE",
+        "NOTIFICATIONS"
       ]
     },
-    "web": {}
+    "web": {},
+    "extra": {
+      "eas": {
+        "projectId": "e50c6ce9-0309-45b9-9791-a9b1ce4bdffc"
+      }
+    },
+    "owner": "codekrieas"
   }
 }

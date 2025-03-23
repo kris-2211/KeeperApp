@@ -7,6 +7,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../context/AuthContext";
 import { IP_CONFIG } from "@env";
 import * as Location from "expo-location";
+import * as Notifications from 'expo-notifications';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState("");
@@ -39,6 +40,15 @@ const LoginScreen = () => {
     return true;
   };
 
+  const requestNotificationPermissions = async () => {
+    const { status } = await Notifications.requestPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission Denied', 'Notification permission is required to use this app.');
+      return false;
+    }
+    return true;
+  };
+
   const handleLogin = async () => {
     setEmailError(validateEmail(email));
     setPasswordError(validatePassword(password));
@@ -55,8 +65,9 @@ const LoginScreen = () => {
       });
 
       if (response.data.token) {
-        const permissionGranted = await requestLocationPermission();
-        if (!permissionGranted) {
+        const locationPermissionGranted = await requestLocationPermission();
+        const notificationPermissionGranted = await requestNotificationPermissions();
+        if (!locationPermissionGranted || !notificationPermissionGranted) {
           setLoading(false);
           return;
         }
