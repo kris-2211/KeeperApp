@@ -1,7 +1,8 @@
 const mongoose = require("mongoose");
 
 const NoteSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Note belongs to a user
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true }, // Note belongs to a user (Owner)
+  collaborators: [{ type: String }], // ✅ List of collaborator emails (updated)
   title: { type: String, required: true },
   content: { type: String, default: "" }, // Rich text content from the editor
   checklist: [

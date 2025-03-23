@@ -70,7 +70,6 @@ const NoteScreen = ({ route, navigation }) => {
   const { note } = route.params || {};
   const webViewRef = useRef(null);
   const [title, setTitle] = useState(note ? note.title : "");
-  // Ensure content is a string (default empty if note not provided)
   const [content, setContent] = useState(note ? note.content : "");
   const [checklist, setChecklist] = useState(note ? note.checklist || [] : []);
   const [toolbarState, setToolbarState] = useState({
@@ -78,10 +77,12 @@ const NoteScreen = ({ route, navigation }) => {
     italic: false,
     underline: false,
   });
-  const [location, setLocation] = useState(note && note.location ? note.location : { type: "Point", coordinates: [0, 0] });
-
+  const [location, setLocation] = useState(note?.location || { type: "Point", coordinates: [0, 0] });
+  const [collaborators, setCollaborators] = useState(note?.collaborators || []);
+  const [collaboratorEmail, setCollaboratorEmail] = useState("");
+  const [ownerEmail, setOwnerEmail] = useState('');
   const initialContentInjected = useRef(false);
-
+  const [user, setUser] = useState({ fullname: "", email: "", avatar: "default.png" });
   // Update content from the RTE
   const onMessage = (event) => {
     try {
@@ -102,6 +103,52 @@ const NoteScreen = ({ route, navigation }) => {
     }
   };
 
+  useEffect(() => {
+    const fetchOwnerEmail = async () => {
+      try{
+        const token = await AsyncStorage.getItem("token");
+        if (!token) {
+          Alert.alert("Error", "No token found. Please log in again.");
+          return;
+        }
+        const response = await axios.get(`http://${IP_CONFIG}:4000/api/notes/${note._id}/owner`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        if(response.data.success){
+          setOwnerEmail(response.data.owner.email);
+        }
+      }
+      catch(err){
+        console.error(err);
+      }
+    }
+    fetchOwnerEmail();
+  })
+  useEffect(() => {
+      const fetchUserProfile = async () => {
+        try {
+          const token = await AsyncStorage.getItem("token");
+          if (!token) {
+            Alert.alert("Error", "No token found. Please log in again.");
+            return;
+          }
+  
+          const response = await axios.get(`http://${IP_CONFIG}:4000/api/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+  
+          if (response.data.success) {
+            setUser(response.data.user);
+          }
+        } catch (error) {
+          console.error("Error fetching user:", error);
+        } finally {
+          setLoading(false);
+        }
+      };
+  
+      fetchUserProfile();
+    }, []);
   // Inject content into the WebView when the component mounts or when the note is loaded
   useEffect(() => {
     if (webViewRef.current && !initialContentInjected.current) {
@@ -145,7 +192,8 @@ const NoteScreen = ({ route, navigation }) => {
       alert("Error: Authentication token is missing. Please log in again.");
       return;
     }
-    const newNote = { title, content, checklist, location };
+
+    const newNote = { title, content, checklist, location, collaborators };
     const url = note
       ? `http://${IP_CONFIG}:4000/api/notes/${note._id}`
       : `http://${IP_CONFIG}:4000/api/notes`;
@@ -163,7 +211,7 @@ const NoteScreen = ({ route, navigation }) => {
       alert(note ? "Note updated" : "New note created");
       navigation.navigate("Home", { refresh: true });
     } catch (err) {
-      alert("Error saving note.");
+      alert(err || "Error saving note.");
     }
   };
 
@@ -193,6 +241,45 @@ const NoteScreen = ({ route, navigation }) => {
     });
   };
 
+  // Add Collaborator
+  const addCollaborator = async () => {
+    if (!collaboratorEmail) {
+      alert("Enter a valid email");
+      return;
+    }
+
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const response = await axios.put(
+        `http://${IP_CONFIG}:4000/api/notes/${note._id}/add-collaborator`,
+        { collaboratorEmail },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setCollaborators(response.data.note.collaborators);
+      setCollaboratorEmail("");
+      alert("Collaborator added successfully");
+    } catch (error) {
+      alert(error.response?.data?.message || "Error adding collaborator");
+    }
+  };
+
+  // Remove Collaborator
+  const removeCollaborator = async (email) => {
+    try {
+      const token = await AsyncStorage.getItem("token");
+      const response = await axios.put(
+        `http://${IP_CONFIG}:4000/api/notes/${note._id}/remove-collaborator`,
+        { collaboratorEmail: email },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+
+      setCollaborators(response.data.note.collaborators);
+      alert("Collaborator removed successfully");
+    } catch (error) {
+      alert(error.response?.data?.message || "Error removing collaborator");
+    }
+  };
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -299,6 +386,47 @@ const NoteScreen = ({ route, navigation }) => {
             <Text style={styles.deleteButtonText}>Delete Note</Text>
           </TouchableOpacity>
         )}
+
+        {/* Collaborators Section (only show if editing an existing note) */}
+        {note && (
+          <View style={styles.collaboratorContainer}>
+            <Text style={styles.collaboratorTitle}>Collaborators</Text>
+
+            {/* Input to Add New Collaborator */}
+            <TextInput
+              style={styles.collaboratorInput}
+              placeholder="Enter collaborator's email"
+              value={collaboratorEmail}
+              onChangeText={setCollaboratorEmail}
+            />
+            <TouchableOpacity style={styles.addButton} onPress={addCollaborator}>
+              <Text style={styles.buttonText}>Add Collaborator</Text>
+            </TouchableOpacity>
+
+            {/* List of Added Collaborators */}
+            {collaborators.length > 1 ? (
+              collaborators.map((email, index) => (
+                (user.email !== email) &&
+                <View key={index} style={styles.collaboratorItem}>
+                  <Text>{email} { (email === ownerEmail) && 
+                    <MaterialCommunityIcons name="crown" size={20} color="gold" />
+                  }
+                  </Text>
+                  <TouchableOpacity
+                    style={styles.removeButton}
+                    onPress={() => removeCollaborator(email)}
+                  >
+                    <Text style={styles.removeButtonText}>Remove</Text>
+                  </TouchableOpacity>
+                </View>
+              ))
+            ) : (
+              <Text style={{ color: "#6A0DAD", textAlign: "center", marginTop: 10 }}>
+                No collaborators added yet
+              </Text>
+            )}
+          </View>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -394,6 +522,53 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   deleteButtonText: { color: "white", fontWeight: "bold" },
+  collaboratorContainer: {
+    marginTop: 20,
+    padding: 10,
+    borderRadius: 5,
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#A780D5",
+  },
+  collaboratorTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#6A0DAD",
+    marginBottom: 10,
+  },
+  collaboratorInput: {
+    height: 40,
+    borderColor: "#A780D5",
+    borderWidth: 1,
+    paddingLeft: 10,
+    borderRadius: 5,
+    backgroundColor: "#F4F0FA",
+    marginBottom: 10,
+  },
+  collaboratorItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderColor: "#E0E0E0",
+  },
+  removeButton: {
+    padding: 5,
+    borderRadius: 5,
+    backgroundColor: "red",
+  },
+  removeButtonText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  addButton: {
+    backgroundColor: "#6A0DAD",
+    padding: 10,
+    borderRadius: 5,
+    alignItems: "center",
+    marginBottom: 10,
+  },
 });
 
 export default NoteScreen;
