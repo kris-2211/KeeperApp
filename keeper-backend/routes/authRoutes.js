@@ -5,6 +5,7 @@ const User = require("../models/User");
 
 const router = express.Router();
 
+// ✅ Health Check
 router.get("/", async (req, res) => {
   res.send("Backend Running");
 });
@@ -148,6 +149,31 @@ router.post("/change-password", authenticateUser, async (req, res) => {
     await user.save();
 
     res.json({ success: true, message: "Password updated successfully." });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error." });
+  }
+});
+
+// ✅ Update Location Permission
+router.put("/location-permission", authenticateUser, async (req, res) => {
+  try {
+    const { locationPermission } = req.body;
+
+    if (typeof locationPermission !== "boolean") {
+      return res.status(400).json({ success: false, message: "Invalid permission value." });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.userId,
+      { locationPermission },
+      { new: true, select: "-password" }
+    );
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    res.json({ success: true, message: "Location permission updated.", user });
   } catch (error) {
     res.status(500).json({ success: false, message: "Server error." });
   }
