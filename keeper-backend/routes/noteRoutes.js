@@ -95,8 +95,10 @@ router.get("/nearby", authenticate, async (req, res) => {
       },
     });
     
-    console.log(nearbyNotes)
-    res.json({ success: true, found:true,  notes: nearbyNotes});
+    if(nearbyNotes.length>0)
+      res.json({ success: true, found:true,  notes: nearbyNotes});
+    else
+      res.json({ success: true, found:false, message: "No notes nearby." });
   } catch (error) {
     res.json({ found: false, message: "No notes nearby." });
   }

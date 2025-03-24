@@ -45,8 +45,6 @@ const checkNearbyNotes = async (latitude, longitude) => {
       params: { latitude, longitude, radius: 500 }, // Adjust radius as needed
       headers: { Authorization: `Bearer ${token}` },
     });
-    console.log("latitude and longitude", latitude, longitude);
-    console.log(response.data);
 
     if (response.data.found) {
       const { notes } = response.data;
