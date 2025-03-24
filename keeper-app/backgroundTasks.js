@@ -98,7 +98,12 @@ export const startLocationTracking = async () => {
 
 // Function to stop location tracking
 export const stopLocationTracking = async () => {
-  await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+  const isTaskRegistered = await TaskManager.isTaskRegisteredAsync(LOCATION_TASK_NAME);
+  if (isTaskRegistered) {
+    await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+  } else {
+    console.log(`Task '${LOCATION_TASK_NAME}' is not registered.`);
+  }
 };
 
 // Handle notification response

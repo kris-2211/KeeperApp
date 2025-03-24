@@ -104,27 +104,6 @@ const NoteScreen = ({ route, navigation }) => {
   };
 
   useEffect(() => {
-    const fetchOwnerEmail = async () => {
-      try{
-        const token = await AsyncStorage.getItem("token");
-        if (!token) {
-          Alert.alert("Error", "No token found. Please log in again.");
-          return;
-        }
-        const response = await axios.get(`http://${IP_CONFIG}:4000/api/notes/${note._id}/owner`, {
-          headers: { Authorization: `Bearer ${token}` },
-        })
-        if(response.data.success){
-          setOwnerEmail(response.data.owner.email);
-        }
-      }
-      catch(err){
-        console.error(err);
-      }
-    }
-    fetchOwnerEmail();
-  })
-  useEffect(() => {
       const fetchUserProfile = async () => {
         try {
           const token = await AsyncStorage.getItem("token");
@@ -139,6 +118,7 @@ const NoteScreen = ({ route, navigation }) => {
   
           if (response.data.success) {
             setUser(response.data.user);
+            setOwnerEmail(response.data.user.email);
           }
         } catch (error) {
           console.error("Error fetching user:", error);
