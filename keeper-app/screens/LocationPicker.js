@@ -1,9 +1,17 @@
 import React, { useState, useEffect } from "react";
-import { View, TextInput, StyleSheet, TouchableOpacity, Text } from "react-native";
-import MapView, { Marker,PROVIDER_GOOGLE } from "react-native-maps";
+import {
+  View,
+  TextInput,
+  StyleSheet,
+  TouchableOpacity,
+  Text,
+  FlatList,
+} from "react-native";
+import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import * as Location from "expo-location";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import Constants from 'expo-constants';
+import axios from "axios";
+import { GOOGLE_MAPS_API_KEY } from "@env";
 
 const LocationPicker = ({ route, navigation }) => {
   const { setLocation, initialLocation } = route.params;
@@ -15,6 +23,7 @@ const LocationPicker = ({ route, navigation }) => {
   });
   const [marker, setMarker] = useState(initialLocation ? initialLocation.coordinates : null);
   const [search, setSearch] = useState("");
+  const [predictions, setPredictions] = useState([]);
 
   useEffect(() => {
     (async () => {
@@ -33,22 +42,52 @@ const LocationPicker = ({ route, navigation }) => {
     })();
   }, []);
 
-  const handleSearch = async () => {
-    try {
-      let geocode = await Location.geocodeAsync(search);
-      if (geocode.length > 0) {
-        const { latitude, longitude } = geocode[0];
-        setRegion({
-          ...region,
-          latitude,
-          longitude,
-        });
-        setMarker([longitude, latitude]);
-      } else {
-        alert("Location not found");
+  const handleSearch = async (text) => {
+    setSearch(text);
+    if (text.length > 2) {
+      try {
+        const response = await axios.get(
+          `https://maps.googleapis.com/maps/api/place/autocomplete/json`,
+          {
+            params: {
+              input: text,
+              key: GOOGLE_MAPS_API_KEY,
+              location: `${region.latitude},${region.longitude}`,
+              radius: 50000, // 50 km radius
+            },
+          }
+        );
+        setPredictions(response.data.predictions.slice(0, 3)); // Top 3 results
+      } catch (error) {
+        console.error("Error fetching autocomplete predictions:", error);
       }
+    } else {
+      setPredictions([]);
+    }
+  };
+
+  const handleSelectPrediction = async (placeId) => {
+    try {
+      const response = await axios.get(
+        `https://maps.googleapis.com/maps/api/place/details/json`,
+        {
+          params: {
+            place_id: placeId,
+            key: GOOGLE_MAPS_API_KEY,
+          },
+        }
+      );
+      const { lat, lng } = response.data.result.geometry.location;
+      setRegion({
+        ...region,
+        latitude: lat,
+        longitude: lng,
+      });
+      setMarker([lng, lat]);
+      setSearch(response.data.result.name);
+      setPredictions([]);
     } catch (error) {
-      alert("Error searching location");
+      console.error("Error fetching place details:", error);
     }
   };
 
@@ -71,18 +110,37 @@ const LocationPicker = ({ route, navigation }) => {
           style={styles.searchInput}
           placeholder="Search for a location"
           value={search}
-          onChangeText={setSearch}
+          onChangeText={handleSearch}
         />
-        <TouchableOpacity onPress={handleSearch} style={styles.searchButton}>
+        <TouchableOpacity style={styles.searchButton}>
           <MaterialCommunityIcons name="magnify" size={24} color="#6A0DAD" />
         </TouchableOpacity>
       </View>
+      {predictions.length > 0 && (
+        <FlatList
+          data={predictions}
+          keyExtractor={(item) => item.place_id}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.predictionItem}
+              onPress={() => handleSelectPrediction(item.place_id)}
+            >
+              <Text style={styles.predictionText}>{item.description}</Text>
+            </TouchableOpacity>
+          )}
+          style={styles.predictionsList}
+        />
+      )}
       <MapView
         provider={PROVIDER_GOOGLE}
         style={styles.map}
         region={region}
+        showsMyLocationButton={true}
+        showsUserLocation={true}
         onRegionChangeComplete={setRegion}
-        onPress={(e) => setMarker([e.nativeEvent.coordinate.longitude, e.nativeEvent.coordinate.latitude])}
+        onPress={(e) =>
+          setMarker([e.nativeEvent.coordinate.longitude, e.nativeEvent.coordinate.latitude])
+        }
       >
         {marker && (
           <Marker
@@ -118,6 +176,24 @@ const styles = StyleSheet.create({
   },
   searchButton: {
     marginLeft: 10,
+  },
+  predictionsList: {
+    backgroundColor: "#fff",
+    position: "absolute",
+    top: 60,
+    left: 10,
+    right: 10,
+    zIndex: 1,
+    borderRadius: 5,
+    elevation: 3,
+  },
+  predictionItem: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ccc",
+  },
+  predictionText: {
+    fontSize: 16,
   },
   map: {
     flex: 1,
