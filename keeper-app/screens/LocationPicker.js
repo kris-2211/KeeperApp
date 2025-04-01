@@ -34,11 +34,16 @@ const LocationPicker = ({ route, navigation }) => {
       }
 
       let location = await Location.getCurrentPositionAsync({});
+      const { latitude, longitude } = location.coords;
+
       setRegion({
         ...region,
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
+        latitude,
+        longitude,
       });
+
+      // Set the initial marker to the user's current location
+      setMarker([longitude, latitude]);
     })();
   }, []);
 
