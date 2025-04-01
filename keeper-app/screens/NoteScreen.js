@@ -80,6 +80,7 @@ const NoteScreen = ({ route, navigation }) => {
   const [location, setLocation] = useState(note?.location || { type: "Point", coordinates: [0, 0] });
   const [collaborators, setCollaborators] = useState(note?.collaborators || []);
   const [collaboratorEmail, setCollaboratorEmail] = useState("");
+  const [currentUser, setCurrentUser] = useState('');
   const [ownerEmail, setOwnerEmail] = useState('');
   const initialContentInjected = useRef(false);
   const [user, setUser] = useState({ fullname: "", email: "", avatar: "default.png" });
@@ -102,7 +103,6 @@ const NoteScreen = ({ route, navigation }) => {
       webViewRef.current.postMessage(command);
     }
   };
-
   useEffect(() => {
       const fetchUserProfile = async () => {
         try {
@@ -115,10 +115,10 @@ const NoteScreen = ({ route, navigation }) => {
           const response = await axios.get(`http://${IP_CONFIG}:4000/api/auth/me`, {
             headers: { Authorization: `Bearer ${token}` },
           });
-  
+          
           if (response.data.success) {
             setUser(response.data.user);
-            setOwnerEmail(response.data.user.email);
+            setCurrentUser(response.data.user.email);
           }
         } catch (error) {
           console.error("Error fetching user:", error);
@@ -126,7 +126,21 @@ const NoteScreen = ({ route, navigation }) => {
           setLoading(false);
         }
       };
-  
+      const fetchOwner = async () => {
+        const token = await AsyncStorage.getItem("token");
+        if (!token) {
+          Alert.alert("Error", "No token found. Please log in again.");
+          return;
+        }
+
+        const response = await axios.get(`http://${IP_CONFIG}:4000/api/notes/${note._id}/owner`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (response.data.success) {
+          setOwnerEmail(response.data.owner.email);
+        }
+      }
+      fetchOwner();
       fetchUserProfile();
     }, []);
   // Inject content into the WebView when the component mounts or when the note is loaded
@@ -164,7 +178,6 @@ const NoteScreen = ({ route, navigation }) => {
   const completionPercentage = checklist.length
     ? (checklist.filter((item) => item.checked).length / checklist.length) * 100
     : 0;
-
   // Save Note
   const saveNote = async () => {
     const token = await AsyncStorage.getItem("token");
@@ -260,6 +273,14 @@ const NoteScreen = ({ route, navigation }) => {
       alert(error.response?.data?.message || "Error removing collaborator");
     }
   };
+  collaborators.forEach(collaborator => {
+    if (collaborator === ownerEmail) {
+      console.log("Owner: " + collaborator);
+    } else {
+      console.log("Not Owner");
+    }
+  });
+  console.log(collaborators);
   return (
     <KeyboardAvoidingView
       style={styles.container}
